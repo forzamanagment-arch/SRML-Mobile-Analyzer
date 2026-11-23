@@ -21,4 +21,4 @@ jobs:
         with:
           node-version: '22'
       - name: Check offline browser analyzer
-        run: node --test web/analyzer.test.mjs
+        run: node --test web/*.test.mjs
