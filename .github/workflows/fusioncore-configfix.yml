@@ -1,5 +1,6 @@
 name: Build FusionCore config-forwarding test APK
 # Experimental side-by-side validation build; never patches the installed game APK.
+# SDK packages are explicitly listed to avoid the retired legacy 'tools' package.
 
 on:
   push:
