@@ -11,6 +11,9 @@ from test_core_tables import sample
 
 def extended_sample():
     data = bytearray(sample())
+    base_header = parse_v39_header(bytes(data))
+    type_offset = base_header["sections"]["type_definitions"]["offset"]
+    struct.pack_into("<8H", data, type_offset + 48, 1, 1, 1, 1, 0, 0, 0, 0)
     cursor = len(data)
     payloads = {
         "properties": struct.pack("<IiiII", 19, 0, -1, 0, 0x17000001),
