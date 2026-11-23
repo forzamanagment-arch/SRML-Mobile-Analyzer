@@ -13,6 +13,8 @@ from .string_literals import inspect_string_literals
 from .images_assemblies import inspect_images, inspect_assemblies
 from .core_tables import inspect_table
 from .model import inspect_model
+from .extra_tables import decode_events, decode_generic_containers, decode_generic_parameters, decode_properties
+from .v39_header import parse_v39_header
 
 
 def nonnegative_int(value: str) -> int:
@@ -62,6 +64,12 @@ def build_parser() -> argparse.ArgumentParser:
     model = sub.add_parser("inspect-model")
     model.add_argument("file")
     model.add_argument("--pretty", action="store_true")
+
+    for name in ("properties", "events", "generic-containers", "generic-parameters"):
+        cmd = sub.add_parser(f"dump-{name}")
+        cmd.add_argument("file")
+        cmd.add_argument("--limit", type=nonnegative_int, default=100)
+        cmd.add_argument("--pretty", action="store_true")
 
     pair = sub.add_parser("inspect-pair")
     pair.add_argument("metadata")
