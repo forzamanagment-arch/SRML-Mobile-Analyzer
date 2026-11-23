@@ -623,3 +623,33 @@ The most direct upstream fix is in the target-game launch handoff, not in Unity'
 A generic copy of every extra should not be added blindly to the game wrapper: its purpose is to enforce its own gate and it may intentionally filter input. For a FusionCore-specific compatibility fix, forward only the known fusioncore.config Parcelable through a supported hook or a narrow, verified integration. Any patch should also preserve normal direct-launch behavior and fail safely when FusionCore is not present.
 
 Do not change the user's installed game or request a reinstall. The next useful research step is to inspect how FusionCore's GameInstrumentation observes the wrapper's subsequent startActivity() call and whether its hook can inject the config into that final Intent without modifying the game APK.
+
+
+### Follow-up: FusionCore already hooks the wrapper's second launch (2026-11-24)
+
+Inspected the remaining FusionCore 0.045 launch path: GameRuntime.GameInstrumentation.start(), wrap(), and newActivity(), plus InstrumentationHooks.getInjectedIntent(). This answers the next question from the prior addendum.
+
+When F587w173 calls startActivity(newIntent), Android routes the call through the installed Instrumentation.execStartActivity(..., Activity target, Intent intent, ...). FusionCore's override receives both the calling Activity and the new Intent, but its current implementation passes only the new Intent to wrap(intent); the caller Activity is not used for config propagation.
+
+GameRuntime.wrap() detects that the destination component belongs to the game package, calls InstrumentationHooks.getInjectedIntent(intent), and redirects it to SecondaryStubActivity. getInjectedIntent() clones the supplied Intent and adds only fusioncore.is_dynamic_activity and fusioncore.original_intent. It does not add fusioncore.config.
+
+GameInstrumentation.newActivity() then resolves the original Intent and only copies fusioncore.config from the outer stub Intent if that outer Intent has the extra. Since the wrapper-created Intent omitted it, the second launch still has no config. This closes the propagation gap through FusionCore's own hooks: they intercept the second launch, but currently do not carry the config from the calling wrapper Activity to the new destination Intent.
+
+#### Narrow candidate fix in FusionCore (not implemented or tested)
+
+The existing Instrumentation override has access to the calling Activity in its execStartActivity(Activity target, Intent intent, ...) overload. A narrowly scoped fix could:
+1. When wrapping an Intent whose destination is inside the game package, inspect target.getIntent().
+2. If the caller's Intent contains EXTRA_FUSION_CONFIG, copy that Parcelable onto the newly wrapped Intent.
+3. Leave all unrelated extras untouched and do not synthesize a config if the caller does not have one.
+4. Let the existing newActivity() path copy the config from the outer stub Intent onto the actual destination Activity Intent.
+
+This would preserve the existing game wrapper and avoid patching or resigning the game APK. It should be implemented carefully for the Activity overload; the overload whose target parameter is a String has no caller Activity and should retain existing behavior. The caller may be null, its Intent may be null, and Parcelable access should use the correct class loader with exception handling.
+
+The expected flow after such a patch is:
+- FusionCore first injects fusioncore.config into F587w173's Intent.
+- F587w173 creates its own empty Intent and starts the actual Unity Activity.
+- FusionCore's Instrumentation hook observes the calling F587w173 Activity, copies only fusioncore.config into the wrapped launch.
+- GameInstrumentation.newActivity() transfers the config to the actual Unity Activity's Intent.
+- Native get_fusion_config() can then retrieve the Parcelable instead of receiving null.
+
+This is a source-level patch proposal only. It has not been compiled, installed, or tested on the device. It also does not guarantee that FusionCore will pass later Unity/IL2CPP initialization stages.
