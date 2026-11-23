@@ -49,16 +49,24 @@ The v39 image decoder reads the version-appropriate image record, including vari
 
 ## Important limitations
 
-- The v39 header parser validates header fields and section bounds. Image, assembly, type, field, method, and parameter records have bounded decoders.
+- The v39 header parser validates header fields and section bounds. Bounded decoders cover image, assembly, type, field, method, parameter, property, event, generic-container, generic-parameter, interface-offset, and selected index-array records.
 - String, string-literal, image, assembly, type, field, method, and parameter decoders currently have synthetic tests only. The target game's actual metadata file has not yet been processed by the project workflow.
 - The header schema is based on a reviewed reference implementation, not an independently published Unity specification.
-- The ELF inspector validates the basic ELF64 little-endian header and ordinary program/section table bounds. Extended section numbering is not implemented. It does not parse dynamic symbols, relocations, or IL2CPP registration structures.
+- The ELF inspector validates ELF64 little-endian headers, ordinary and extended section numbering, section bounds, and retained static/dynamic symbol tables. It highlights retained IL2CPP-related symbols. It does not yet parse relocations or reconstruct IL2CPP code/metadata registration structures.
 - No target-game binary is stored in this public repository.
 
 ### Core type and member records
 
 The v39 type-definition decoder reads compact TypeIndex and GenericContainerIndex values, the fixed member-range/count fields, flags, bitfield, and token. For v35+, the former element-type field is absent; the enum underlying type is represented by the parent type index. Field and parameter records use compact TypeIndex values. Method records use compact type-definition, type, parameter-definition, and generic-container indices. All four decoders validate exact table sizes and resolve names through the bounded string pool. The layouts follow the reviewed v38/v39 record definitions in Perfare/Il2CppDumper PR #922. They have synthetic fixtures only and are not yet validated against the target game.
 
+## Integrated model and offline browser analyzer
+
+`srml_analyzer/model.py` joins classes with their fields, methods, parameters, properties, and events. It validates member ranges, nested-type references, image/assembly links, and generic-container ranges. `TypeIndex` values are not class-definition indices; their names require the runtime type array reconstructed from the matching native library's metadata registration.
+
+`srml_analyzer/extra_tables.py` decodes v39 properties, events, generic containers, generic parameters, interface offsets, and compact index arrays. The command `inspect-model` exports a cross-linked JSON report.
+
+The `web/analyzer-offline.html` file is a self-contained browser tool for Android. It reads a user-selected metadata file with the browser File API, renders a class/member preview, and exports JSON. Its JavaScript is bundled in the HTML file; the offline smoke test checks script syntax and guards against network upload APIs. The modular `web/index.html` + `web/analyzer.js` variant is also retained for static hosting.
+
 ## Next research target
 
-Run the parser against the target game's local `global-metadata.dat` without committing the binary. Then add cross-table range validation, properties/events/generic metadata, and ELF registration analysis.
+Run the parser against the target game's local `global-metadata.dat` without committing the binary. Then use the paired `libil2cpp.so` to resolve TypeIndex values and inspect code/metadata registration and method-pointer mappings.
