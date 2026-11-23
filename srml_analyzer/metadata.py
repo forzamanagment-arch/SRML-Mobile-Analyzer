@@ -1,16 +1,13 @@
-"""Conservative parser for the IL2CPP global-metadata container header.
-
-The current implementation deliberately does not assign semantic names to
-header pairs. Version-39 table layout must be verified before decoding.
-"""
+"""Conservative parser for the IL2CPP global-metadata container header."""
 from __future__ import annotations
 
 import struct
 from pathlib import Path
-from .errors import FormatError
 
-MAGIC = bytes.fromhex("AF 1B B1 FA")
-HEADER_PREFIX_SIZE = 8
+from .errors import FormatError
+from .v39_header import MAGIC, PREFIX_SIZE, parse_v39_header
+
+HEADER_PREFIX_SIZE = PREFIX_SIZE
 
 
 def inspect_metadata(path: str | Path, max_candidates: int = 64) -> dict:
@@ -20,45 +17,52 @@ def inspect_metadata(path: str | Path, max_candidates: int = 64) -> dict:
     if data[:4] != MAGIC:
         raise FormatError(f"Unexpected metadata magic: {data[:4].hex(' ').upper()}")
 
-    version = struct.unpack_from("<I", data, 4)[0]
+    version = struct.unpack_from("<i", data, 4)[0]
     result = {
         "format": "il2cpp-global-metadata",
         "file": Path(path).name,
         "file_size": len(data),
         "magic": data[:4].hex(" ").upper(),
         "version": version,
-        "header_bytes": len(data),
         "status": "header-recognized",
-        "table_schema_decoded": False,
-        "notes": [
-            "Offset/size pairs below are exploratory candidates only.",
-            "No candidate is asserted to be a real metadata table.",
-        ],
-        "exploratory_candidates": _scan_pairs(data, max_candidates),
+        "table_records_decoded": False,
     }
-    if version != 39:
-        result["notes"].append(
-            "This sample is not metadata version 39; schema compatibility is unverified."
-        )
+
+    if version == 39:
+        parsed = parse_v39_header(data)
+        result.update({
+            "status": "v39-header-validated",
+            "header_bytes": parsed["header_size"],
+            "sections": parsed["sections"],
+            "index_widths": parsed["index_widths"],
+            "notes": [
+                "The v39 header and section bounds were parsed.",
+                "Table records are not decoded yet; this is not a complete IL2CPP dump.",
+                "Validate this schema against the target game's local metadata sample before relying on it.",
+            ],
+        })
     else:
-        result["notes"].append(
-            "Version 39 identified. Full version-39 table schema is not implemented yet."
-        )
+        result.update({
+            "header_bytes": len(data),
+            "status": "header-recognized-unparsed",
+            "notes": [
+                "Only the magic and version prefix were checked for this metadata version.",
+                "No table schema is asserted for this version.",
+            ],
+            "exploratory_candidates": _scan_pairs(data, max_candidates),
+        })
     return result
 
 
 def _scan_pairs(data: bytes, limit: int) -> list[dict]:
     """Find bounded aligned u32 offset/size pairs without naming their meaning."""
     candidates = []
-    # Metadata headers are sequences of 32-bit values. Scan conservatively.
     for pos in range(8, len(data) - 7, 4):
         offset, size = struct.unpack_from("<II", data, pos)
         if size == 0 or offset < 8:
             continue
         end = offset + size
-        if end > len(data) or end < offset:
-            continue
-        if offset % 4 != 0:
+        if end > len(data) or end < offset or offset % 4:
             continue
         candidates.append({
             "header_position": pos,
