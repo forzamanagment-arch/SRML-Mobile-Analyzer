@@ -60,6 +60,12 @@ runtime.write_text(source.replace(anchor, replacement), encoding="utf-8")
 
 gradle = Path("fusionApp/build.gradle.kts")
 build = gradle.read_text(encoding="utf-8")
+
+sdk_anchor = "    compileSdk = 37\n"
+if build.count(sdk_anchor) != 1:
+    raise SystemExit(f"Expected exactly one compileSdk 37 setting, found {build.count(sdk_anchor)}")
+build = build.replace(sdk_anchor, "    compileSdk = 36\n")
+
 anchor = """    buildTypes {
         release {
 """
