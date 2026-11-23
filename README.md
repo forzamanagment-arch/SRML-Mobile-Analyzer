@@ -29,9 +29,13 @@ python -m srml_analyzer dump-strings global-metadata.dat --limit 200 --pretty
 python -m srml_analyzer dump-literals global-metadata.dat --limit 200 --pretty
 python -m srml_analyzer dump-images global-metadata.dat --limit 200 --pretty
 python -m srml_analyzer dump-assemblies global-metadata.dat --limit 200 --pretty
+python -m srml_analyzer dump-types global-metadata.dat --limit 200 --pretty
+python -m srml_analyzer dump-fields global-metadata.dat --limit 200 --pretty
+python -m srml_analyzer dump-methods global-metadata.dat --limit 200 --pretty
+python -m srml_analyzer dump-parameters global-metadata.dat --limit 200 --pretty
 ```
 
-Add `--pretty` for formatted JSON. `dump-strings` decodes the ordinary v39 UTF-8 string blob, `dump-literals` decodes the separate string-literal table, and `dump-images` / `dump-assemblies` decode their corresponding v39 records and resolve names through the ordinary string pool. Each dump prints up to 100 entries by default; use `--limit` to change the preview size.
+Add `--pretty` for formatted JSON. `dump-strings` decodes the ordinary v39 UTF-8 string blob, `dump-literals` decodes the separate string-literal table, and `dump-images` / `dump-assemblies` decode their corresponding v39 records; `dump-types`, `dump-fields`, `dump-methods`, and `dump-parameters` decode the core type/member records. Names are resolved through the ordinary string pool. Each dump prints up to 100 entries by default; use `--limit` to change the preview size.
 
 For metadata v39, `inspect-metadata` reports the parsed header sections and calculated index widths. For other versions, it only checks the magic/version prefix and labels any offset/size scan as exploratory.
 
@@ -44,7 +48,7 @@ python -m unittest discover -s tests -v
 ## Roadmap
 
 1. Validate the v39 header against the target game's local sample.
-2. Validate image and assembly decoders against the target sample, then decode types, fields, methods, and parameters.
+2. Validate all current v39 table decoders against the target sample; then add relationships, generic metadata, and cross-table reference checks.
 3. Resolve method pointers using the matching ELF and registration structures.
 4. Export stable JSON and human-readable dumps.
 
