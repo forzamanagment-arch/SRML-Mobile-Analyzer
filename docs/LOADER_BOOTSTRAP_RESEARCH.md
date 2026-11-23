@@ -413,3 +413,71 @@ Static prerequisites now align unusually well:
 - The probe compiles against the exact embedded FusionCore BepInEx assemblies.
 
 Remaining unknowns are runtime-only: detection on the actual device, game Activity hosting, Unity initialization, IL2CPP API mapping for this exact `libil2cpp.so`, and actual plugin execution. Android 16 / OriginOS 16 and this specific game build remain untested.
+
+
+---
+
+## Addendum: FusionCore 0.045 JNI crash on Unity 6 / Android 16
+
+Date: 2026-11-24
+
+### Device observation
+
+Slime Rancher Mobile is detected by FusionCore 0.045, but launching through FusionCore terminates at the early Unity loading screen. The game still launches normally when started directly. The device's Android exit report identifies a CheckJNI fatal error in the FusionCore native bootstrap:
+
+```
+JNI DETECTED ERROR IN APPLICATION: obj == null
+in call to GetBooleanField
+from boolean com.unity3d.player.NativeLoader.load(java.lang.String)
+```
+
+The report's native stack enters `fusion_parse_config()` during `fusion_bootstrap_from_libmain()`. BepInEx has no `LogOutput.log`, consistent with the failure occurring before the managed chainloader starts.
+
+### Source-level failure path in FusionCore tag 0.045
+
+Reviewed files:
+- `fusionApp/src/main/jni/fusion/src/fusion.cpp`
+- `fusionApp/src/main/jni/fusion/src/fusion_config.cpp`
+- `fusionApp/src/main/jni/fusion/src/utilities/java.cpp`
+- `fusionApp/src/main/jni/main/main.cpp`
+
+The native `load(JNIEnv*, jobject, jstring)` entry point calls `fusion_bootstrap_from_libmain(env)`. That calls `get_fusion_config(env)`, then passes the returned object directly to `fusion_parse_config(env, javaConfig)`. There is no null check between these calls.
+
+`get_fusion_config()` can return null if it cannot obtain the current Unity Activity, its Intent, or the `fusioncore.config` Parcelable extra. `fusion_parse_config()` immediately invokes `GetBooleanField(jFusionConfig, ...)` for `isIl2Cpp2Mono` and `useOriginalLibUnity`. A null config therefore reaches JNI `GetBooleanField` and matches the observed CheckJNI error.
+
+### Strong Unity 6 compatibility hypothesis
+
+The target game uses Unity `6000.3.0f1`. Unity's Unity 6 upgrade documentation states that the former Java `UnityPlayer` class was split into `UnityPlayerForActivityOrService` and `UnityPlayerForGameActivity`, both derived from the `UnityPlayer` base class. Unity also documents that the GameActivity entry point is `UnityPlayerGameActivity` and uses the `UnityPlayerForGameActivity` bridge.
+
+FusionCore 0.045's `getUnityActivity()` searches these class names in this order:
+1. `com/unity3d/player/UnityPlayer`
+2. `com/unity3d/player/UnityPlayerForGameActivity`
+3. `com/unity3d/player/UnityPlayerForActivityOrService`
+
+It stops as soon as the first class is found, then looks for a static `currentActivity` field on that class. If Unity 6's base `UnityPlayer` is present but the field is declared on the concrete bridge class, FusionCore returns null without trying the bridge classes. This is a particularly plausible explanation for the null Activity -> null config -> `GetBooleanField(null, ...)` crash. It is not yet proven against this exact game's packaged Unity Java classes.
+
+A second possible null path is that the Activity is found but its Intent does not contain the expected `fusioncore.config` extra. The current report alone cannot distinguish these two cases.
+
+### Additional native parsing defect
+
+The `GET_JBOOLEAN_FIELD` macro tests a `jboolean` value with `if (!value)` and logs it as "null". A Java boolean false is a valid value, not a null reference. This is a misleading diagnostic and the subsequent `ExceptionClear()` is inappropriate when no JNI exception is pending. It is not the cause of the observed null-object crash, but should be corrected in any maintained fork.
+
+### Safe fix direction (not yet implemented)
+
+1. Make `getUnityActivity()` test each candidate class independently: find the class, look up `currentActivity`, read the field, and continue to the next candidate if either the field ID or Activity object is null. Delete local references on every path.
+2. Add explicit null checks after `getUnityActivity()`, `getIntent()`, and `getParcelableExtra()`; log which stage failed and return a controlled bootstrap failure.
+3. Check `javaConfig` in `fusion_bootstrap_from_libmain()` before calling `fusion_parse_config()`.
+4. Check `jFusionConfig` and each `GetFieldID()` result before any field read in `fusion_parse_config()`. Do not call `ExceptionClear()` merely because a boolean value is false.
+5. If the Activity exists but the extra is absent, inspect Intent wrapping/Parcelable class-loader propagation separately. Do not mask that failure by guessing a config.
+
+The first fix should prevent the fatal null dereference and expose a useful log; it may not by itself make the game launch. The Unity bridge-field hypothesis must be verified against the target APK's actual classes before treating it as the confirmed root cause.
+
+### Related upstream evidence
+
+- FusionCore source tag 0.045: https://github.com/All-Of-Us-Mods/FusionCore/tree/0.045
+- FusionCore issue #34 reports a different JNI-related crash on Android 16 with Unity 2020.3.41f1; the maintainer attributed that report to the Unity 2020.X interop path. It is not the same stack or proven same defect: https://github.com/All-Of-Us-Mods/FusionCore/issues/34
+- Unity 6 upgrade guide documents the UnityPlayer bridge-class split: https://docs.unity.cn/6000.2/Documentation/Manual/UpgradeGuideUnity6.html
+- Unity 6000.3 AndroidApplication.currentActivity reference: https://docs.unity.com/en-us/engine/6000.3/script-reference/unityengine/android/androidapplication/currentactivity
+- Unity 6 Android application entry documentation describes `UnityPlayerForGameActivity` and `UnityPlayerGameActivity`: https://docs.unity.com/en-us/engine/6000.7/manual/platform-specific/android/developing/unityasa-library
+
+Status: source-level root-cause candidate identified; no FusionCore binary has been modified, and no device-side fix has been tested.
