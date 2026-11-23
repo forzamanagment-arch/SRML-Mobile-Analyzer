@@ -12,6 +12,7 @@ from .strings import inspect_string_pool
 from .string_literals import inspect_string_literals
 from .images_assemblies import inspect_images, inspect_assemblies
 from .core_tables import inspect_table
+from .model import inspect_model
 
 
 def nonnegative_int(value: str) -> int:
@@ -58,6 +59,10 @@ def build_parser() -> argparse.ArgumentParser:
         cmd.add_argument("--limit", type=nonnegative_int, default=100)
         cmd.add_argument("--pretty", action="store_true")
 
+    model = sub.add_parser("inspect-model")
+    model.add_argument("file")
+    model.add_argument("--pretty", action="store_true")
+
     pair = sub.add_parser("inspect-pair")
     pair.add_argument("metadata")
     pair.add_argument("elf")
@@ -82,6 +87,8 @@ def main(argv: list[str] | None = None) -> int:
             result = inspect_assemblies(args.file, limit=args.limit)
         elif args.command in ("dump-types", "dump-fields", "dump-methods", "dump-parameters"):
             result = inspect_table(args.file, args.command.removeprefix("dump-"), limit=args.limit)
+        elif args.command == "inspect-model":
+            result = inspect_model(args.file)
         else:
             result = {
                 "metadata": inspect_metadata(args.metadata),
