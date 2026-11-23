@@ -2,6 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { parseHeader, decode } from "./analyzer.js";
 
+function u32(value){const b=new Uint8Array(4);new DataView(b.buffer).setUint32(0,value,true);return b;}
+function u16(value){const b=new Uint8Array(2);new DataView(b.buffer).setUint16(0,value,true);return b;}
+function join(...parts){const out=new Uint8Array(parts.reduce((n,p)=>n+p.length,0));let at=0;for(const p of parts){out.set(p,at);at+=p.length;}return out;}
+
 function emptyV39() {
   const bytes = new Uint8Array(380);
   bytes.set([0xaf, 0x1b, 0xb1, 0xfa], 0);
@@ -21,10 +25,6 @@ function sampleV39() {
       new Uint8Array(32), u16(1), u16(0), u16(1), u16(0),
       u16(0), u16(0), u16(0), u16(0), u32(1), u32(0x02000001)), 1]
   };
-  const bytes = new Uint8Array(380);
-  bytes.set([0xaf,0x1b,0xb1,0xfa],0);
-  const view = new DataView(bytes.buffer);
-  view.setInt32(4,39,true);
   const sectionNames = [
     "string_literals","string_literal_data","strings","events","properties","methods",
     "parameter_default_values","field_default_values","field_and_parameter_default_value_data",
@@ -35,30 +35,24 @@ function sampleV39() {
     "unresolved_virtual_call_parameter_ranges","windows_runtime_type_names",
     "windows_runtime_strings","exported_type_definitions"
   ];
-  let cursor=380;
-  for(let i=0;i<sectionNames.length;i++){
-    const name=sectionNames[i], payload=payloads[name];
-    if(payload){
-      const [blob,count]=payload;
-      const next=new Uint8Array(cursor+blob.length);
-      next.set(bytes);next.set(blob,cursor);
-      const nextView=new DataView(next.buffer);
-      nextView.setUint32(8+i*12,cursor,true);
-      nextView.setUint32(12+i*12,blob.length,true);
-      nextView.setUint32(16+i*12,count,true);
-      cursor+=blob.length;
-      // Keep a mutable reference for the next section append.
-      bytes.set(next.subarray(0,Math.min(bytes.length,next.length)));
-      payloads[name]=[blob,count];
-      // Replace local storage through the shared holder below.
-      current=next;
-    } else if (!current) current=bytes;
+  const total = 380 + Object.values(payloads).reduce((sum, item) => sum + item[0].length, 0);
+  const bytes = new Uint8Array(total);
+  bytes.set([0xaf,0x1b,0xb1,0xfa],0);
+  const view = new DataView(bytes.buffer);
+  view.setInt32(4,39,true);
+  let cursor = 380;
+  for (let i=0;i<sectionNames.length;i++) {
+    const item = payloads[sectionNames[i]];
+    if (!item) continue;
+    const [blob,count] = item;
+    view.setUint32(8+i*12,cursor,true);
+    view.setUint32(12+i*12,blob.length,true);
+    view.setUint32(16+i*12,count,true);
+    bytes.set(blob,cursor);
+    cursor += blob.length;
   }
-  return current.buffer;
+  return bytes.buffer;
 }
-function u32(value){const b=new Uint8Array(4);new DataView(b.buffer).setUint32(0,value,true);return b;}
-function u16(value){const b=new Uint8Array(2);new DataView(b.buffer).setUint16(0,value,true);return b;}
-function join(...parts){const out=new Uint8Array(parts.reduce((n,p)=>n+p.length,0));let at=0;for(const p of parts){out.set(p,at);at+=p.length;}return out;}
 
 test("browser parser accepts an empty v39 header", () => {
   const header = parseHeader(emptyV39());
@@ -78,4 +72,13 @@ test("browser parser rejects a different metadata version", () => {
   const bytes = new Uint8Array(emptyV39());
   new DataView(bytes.buffer).setInt32(4, 38, true);
   assert.throws(() => parseHeader(bytes.buffer), /metadata v39/);
+});
+
+test("browser parser links a synthetic class, field, method and parameter", () => {
+  const result = decode(sampleV39());
+  assert.equal(result.types[0].full_name, "System.Thing");
+  assert.equal(result.types[0].fields[0].name, "value");
+  assert.equal(result.types[0].methods[0].name, "Run");
+  assert.equal(result.types[0].methods[0].parameters[0].name, "arg");
+  assert.equal(result.validation.errors.length, 0);
 });
