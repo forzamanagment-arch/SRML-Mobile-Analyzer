@@ -562,3 +562,64 @@ Interpretation:
 - The earlier hypothesis that `currentActivity` is absent from the UnityPlayer base class remains falsified by DEX inspection.
 
 Next source-level diagnostic: inspect the bytecode of `F587w173.onCreate()` and `startOriginalLauncher()`, identify the actual target Activity class it starts, and compare that with FusionCore's Activity/Intent hooks. This should determine whether the wrapper is a simple trampoline, a protection/loader layer, or a custom Unity launch path. Do not patch the game or FusionCore until this flow is understood.
+
+
+### Follow-up: launcher wrapper bytecode explains the missing FusionConfig (2026-11-24)
+
+The three supplied DEX files were disassembled far enough to inspect the actual code of F587w173.onCreate() and F587w173.startOriginalLauncher(). This resolves the main question raised by the manifest analysis.
+
+#### What the target wrapper does
+
+F587w173.onCreate():
+1. Calls U0ftjgeu.onProcessStart(this).
+2. Obtains and stores an app signature via U0ftjgeu.appSignature(this).
+3. Calls U0ftjgeu.isTampered(signature). If true, it displays the tamper UI and returns.
+4. Calls Aouucjll.shouldShow(this).
+5. If the gate should not be shown, calls startOriginalLauncher() and returns.
+6. Otherwise, calls U0ftjgeu.showGate(...).
+
+startOriginalLauncher():
+1. Calls the native Uve5zv8a.getOriginalLauncherClass(mSig) method to obtain the original launch Activity class name.
+2. Creates a new, empty android.content.Intent.
+3. Calls setClassName(this, originalLauncherClass).
+4. Adds flags 0x24000000.
+5. Calls U0ftjgeu.markFromGate(intent).
+6. Copies the incoming launch Intent's data URI, if present.
+7. Copies the incoming launch Intent's action, if present.
+8. Starts the new Intent and finishes the wrapper Activity.
+
+The method does not copy the incoming Intent's extras, categories, or ClipData. The called U0ftjgeu.markFromGate(Intent) method was also disassembled: it only adds a boolean extra under the key xd32efb; it does not copy or recreate FusionCore's config extra.
+
+The getOriginalLauncherClass(String) method is declared public static native; its native implementation is not present in these DEX files. The exact returned class name therefore remains unknown from this artifact alone. The important fact is that the wrapper launches the returned class using a freshly constructed Intent that omits arbitrary extras.
+
+#### Cross-check against FusionCore 0.045
+
+The matching FusionCore source confirms this exact propagation chain:
+
+1. BootstrapActivity.runBootstrapFlow() obtains the target package launch Activity and prepares a FusionConfig.
+2. It creates an Intent for that launcher Activity, wraps it in an Intent targeting StubActivity, and puts the config into the wrapper Intent using InstrumentationHooks.EXTRA_FUSION_CONFIG.
+3. InstrumentationHooks.EXTRA_FUSION_CONFIG is exactly fusioncore.config.
+4. GameInstrumentation.newActivity() resolves the original target Intent and explicitly copies the fusioncore.config Parcelable into that target Activity's Intent.
+5. In this case the target Activity is the game's manifest launcher, F587w173. Its onCreate() then launches the actual Unity Activity with a different new Intent and does not forward fusioncore.config.
+6. FusionCore's native get_fusion_config() later reads UnityPlayer.currentActivity.getIntent().getParcelableExtra("fusioncore.config"). The extra is absent from the newly created Unity Activity Intent, so this returns null.
+7. fusion_bootstrap_from_libmain() passes that null object directly to fusion_parse_config(), whose first boolean field read calls GetBooleanField(null, ...). This matches the user's CheckJNI fatal error exactly.
+
+This is now a strong source-and-bytecode-supported root-cause explanation, not merely a Unity 6 guess. It accounts for the full observed chain: custom manifest launcher -> new Intent without extras -> missing fusioncore.config -> null JNI object -> fatal GetBooleanField.
+
+#### What remains unverified
+
+- The native getOriginalLauncherClass() return value has not been resolved, so the exact fully qualified name of the Activity launched after the wrapper is not yet known.
+- We have not instrumented the running device to log the Unity Activity's Intent.
+- No FusionCore APK or game APK has been modified, and no fix has been tested on-device.
+- There may be additional compatibility issues after this early crash is fixed.
+
+#### Correct fix direction
+
+The most direct upstream fix is in the target-game launch handoff, not in Unity's currentActivity lookup:
+
+- Preserve the FusionCore config extra when F587w173.startOriginalLauncher() constructs the new Intent, or
+- make FusionCore's launch path attach the config to the final Unity Activity Intent after the game's wrapper has delegated, using a controlled Activity/Instrumentation hook.
+
+A generic copy of every extra should not be added blindly to the game wrapper: its purpose is to enforce its own gate and it may intentionally filter input. For a FusionCore-specific compatibility fix, forward only the known fusioncore.config Parcelable through a supported hook or a narrow, verified integration. Any patch should also preserve normal direct-launch behavior and fail safely when FusionCore is not present.
+
+Do not change the user's installed game or request a reinstall. The next useful research step is to inspect how FusionCore's GameInstrumentation observes the wrapper's subsequent startActivity() call and whether its hook can inject the config into that final Intent without modifying the game APK.
