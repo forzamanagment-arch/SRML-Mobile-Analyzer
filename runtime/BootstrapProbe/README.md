@@ -12,6 +12,8 @@ It also reports basic runtime information. It does not access game objects, chan
 
 ## Build
 
+The probe is intentionally minimal and uses the same BepInEx plugin API shape as the public NextBep sample.
+
 The GitHub Actions workflow `.github/workflows/bootstrap-probe.yml` checks out the public NextBep launcher repository for its reference assemblies, builds this project with .NET 8, and packages the resulting DLL under:
 
 `BepInEx/plugins/BootstrapProbe.dll`
