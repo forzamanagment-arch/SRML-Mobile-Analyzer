@@ -32,7 +32,7 @@ def decode_images(data: bytes, header: dict) -> list[dict]:
     strings_section = header["sections"]["strings"]
     strings = data[strings_section["offset"]:strings_section["end"]]
     width = header["index_widths"]["type_definition_index"]
-    record_size = 36 + 2 * width
+    record_size = 32 + 2 * width
     expected_size = section["count"] * record_size
     if section["size"] != expected_size:
         raise FormatError(
