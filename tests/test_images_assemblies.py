@@ -11,7 +11,7 @@ def make_sample():
     strings = b"Assembly-CSharp.dll\\x00Image\\x00"
     image_width = 1
     image = struct.pack(
-        "<Ii", 5, 0
+        "<Ii", 20, 0
     ) + bytes([0]) + struct.pack("<I", 3) + bytes([0]) + struct.pack(
         "<IiIiI", 2, -1, 0x20000001, 0, 0
     )
