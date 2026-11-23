@@ -14,13 +14,11 @@ jobs:
   inspect:
     runs-on: ubuntu-latest
     steps:
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Install APK inspection tools
         run: |
+          command -v sdkmanager
           yes | sdkmanager --licenses >/dev/null
-          sdkmanager "build-tools;36.0.0"
+          sdkmanager --install "build-tools;36.0.0"
 
       - name: Download and inspect official release APKs
         shell: bash
