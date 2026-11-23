@@ -1,9 +1,8 @@
 """Version-38/39 variable-width metadata index helpers.
 
-This module implements the width rules observed in the Unity 6000.3-era
-Il2CppDumper metadata definitions. It is intentionally not wired into the
-file parser until the complete v39 header and record layouts are validated
-against the target game's real metadata file.
+This module implements the variable-width index rules described by the
+Unity 6000.3-era Il2CppDumper metadata definitions. The rules are used by
+the v39 header and record decoders; target-game validation is still pending.
 """
 from __future__ import annotations
 
