@@ -33,10 +33,16 @@ Index width rules implemented in `srml_analyzer/index_widths.py`:
 
 The v39 header parser is covered by synthetic tests. This is not yet proof that the schema matches the target game's actual file: the local `global-metadata.dat` has not yet been run through this parser in the project workflow.
 
+## String pool decoder
+
+The v39 `strings` section is a shared UTF-8 byte blob. Name indices are byte offsets into this blob, and strings are NUL-terminated; they are not sequential table-record IDs. The separate `string_literals` table is not decoded by this feature. The reference implementation resolves ordinary names by adding the stored index to `stringOffset` and reading through the next NUL byte. For v35 and later, string-literal lengths are derived from adjacent literal data offsets rather than the legacy per-literal length field.
+
+The analyzer now provides `dump-strings`, which scans the bounded string section, validates UTF-8 and terminators, preserves each string's byte offset, and emits a limited preview. The v39 header's `strings.count` field is reported but deliberately not treated as the number of NUL-separated entries until that field's semantics are independently confirmed.
+
 ## Important limitations
 
 - The v39 header parser validates header fields and section bounds; it does not decode table records.
-- Image, assembly, type, field, method, parameter, and string records are not yet decoded.
+- Image, assembly, type, field, method, and parameter records are not yet decoded. The ordinary v39 string blob is now decoded, but the separate string-literal table is not.
 - The header schema is based on a reviewed reference implementation, not an independently published Unity specification.
 - The ELF inspector validates the basic ELF64 little-endian header and ordinary program/section table bounds. Extended section numbering is not implemented. It does not parse dynamic symbols, relocations, or IL2CPP registration structures.
 - No target-game binary is stored in this public repository.
