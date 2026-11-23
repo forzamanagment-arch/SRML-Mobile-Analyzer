@@ -8,7 +8,7 @@ from srml_analyzer.v39_header import MAGIC, V39_SECTIONS, v39_header_size
 
 def make_sample():
     header_size = v39_header_size()
-    strings = b"Assembly-CSharp.dll\\x00Image\\x00"
+    strings = b"Assembly-CSharp.dll\x00Image\x00"
     image_width = 1
     image = struct.pack(
         "<Ii", 20, 0
