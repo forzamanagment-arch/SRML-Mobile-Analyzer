@@ -1,0 +1,44 @@
+name: Build Android Bootstrap Probe
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "runtime/BootstrapProbe/**"
+      - ".github/workflows/bootstrap-probe.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout SRML Mobile
+        uses: actions/checkout@v4
+
+      - name: Checkout NextBep reference assemblies
+        uses: actions/checkout@v4
+        with:
+          repository: NextBep/BepInEx.Android.Launcher
+          ref: main
+          path: deps/NextBepLauncher
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Build probe plugin
+        run: dotnet build runtime/BootstrapProbe/BootstrapProbe.csproj --configuration Release --output artifacts/BootstrapProbe
+
+      - name: Package probe plugin
+        run: |
+          mkdir -p artifacts/package/BepInEx/plugins
+          cp artifacts/BootstrapProbe/BootstrapProbe.dll artifacts/package/BepInEx/plugins/
+          cd artifacts/package
+          zip -r ../../SRMLMobile-BootstrapProbe.zip BepInEx
+
+      - name: Upload probe artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SRMLMobile-BootstrapProbe
+          path: SRMLMobile-BootstrapProbe.zip
+          if-no-files-found: error
