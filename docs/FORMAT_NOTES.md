@@ -39,10 +39,14 @@ The v39 `strings` section is a shared UTF-8 byte blob. Name indices are byte off
 
 The analyzer now provides `dump-strings`, which scans the bounded string section, validates UTF-8 and terminators, preserves each string's byte offset, and emits a limited preview. The v39 header's `strings.count` field is reported but deliberately not treated as the number of NUL-separated entries until that field's semantics are independently confirmed.
 
+### String-literal table
+
+The v39 `string_literals` records contain a single 32-bit `dataIndex`; the legacy per-record `length` field is absent. The decoder validates the table size against the explicit record count, checks that data offsets are monotonic and bounded, and derives each UTF-8 literal's length from the next record or the end of `string_literal_data`. This follows the v38+ record definition and the v35+ length calculation in the reviewed Il2CppDumper implementation. It has synthetic tests only; the target game's sample has not yet been checked.
+
 ## Important limitations
 
 - The v39 header parser validates header fields and section bounds; it does not decode table records.
-- Image, assembly, type, field, method, and parameter records are not yet decoded. The ordinary v39 string blob is now decoded, but the separate string-literal table is not.
+- Image, assembly, type, field, method, and parameter records are not yet decoded. Both the ordinary v39 string blob and the separate string-literal table now have bounded decoders.
 - The header schema is based on a reviewed reference implementation, not an independently published Unity specification.
 - The ELF inspector validates the basic ELF64 little-endian header and ordinary program/section table bounds. Extended section numbering is not implemented. It does not parse dynamic symbols, relocations, or IL2CPP registration structures.
 - No target-game binary is stored in this public repository.
