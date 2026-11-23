@@ -1,7 +1,7 @@
 import unittest
 
 from srml_analyzer.model import build_model
-from tests.test_core_tables import sample
+from test_core_tables import sample
 
 
 class ModelTests(unittest.TestCase):
