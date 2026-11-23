@@ -335,3 +335,81 @@ Before asking the user to install anything:
 - Keep original game installation and save data untouched.
 
 Only then conduct a controlled first launch. A successful launch is still only Gate 1; plugin marker, IL2CPP readiness, interop, and a harmless reversible game-side test remain separate gates.
+
+
+---
+
+## Addendum: FusionCore 0.045 APK verification and probe retarget
+
+Date: 2026-11-24
+
+### APK verification performed in GitHub Actions
+
+A reproducible inspection workflow was added at `.github/workflows/inspect-fusioncore-apk.yml`. It downloads the official FusionCore release assets and checks the published GitHub SHA-256 values, APK manifest, signing certificate, native libraries, and embedded BepInEx archive.
+
+The latest inspected APK (`0.045`) passed:
+- Downloaded file SHA-256 matched the GitHub release asset digest: `661ad5ebaef78c9ea395d7751f9c4f758b263008a4e012d1167cc6ae3aec3602`.
+- `apksigner verify` succeeded using APK Signature Scheme v2.
+- The same signing certificate was present in both releases `0.0.4` and `0.045`; certificate SHA-256: `231eed8eb870813a2b820245b78775258af384bf1ae8be0d82abe5fe84c1d692`.
+- Package ID: `dev.allofus.fusioncore`.
+- Label: `Fusion Core`.
+- minSdk 24, targetSdk 36, compileSdk 37, ABI `arm64-v8a`.
+- Note: despite the release tag `0.045`, the APK manifest still reports `versionName=0.0.1` and `versionCode=1`.
+
+This establishes that the downloaded APK matches the published release file and has a consistent signer across the two checked releases. It does not prove that the software is bug-free or compatible with Slime Rancher Mobile.
+
+### Permission review
+
+The APK manifest declares:
+- `MANAGE_EXTERNAL_STORAGE` (the app explicitly sends the user to Android's all-files access settings).
+- `QUERY_ALL_PACKAGES` (used by the selector's installed-game scan).
+- Legacy and media storage permissions, Internet/network permissions, and notification permission.
+- Also `CAMERA`, `FOREGROUND_SERVICE_MICROPHONE`, and Play Billing permission.
+
+In the reviewed FusionCore Java/Kotlin source, the all-files permission is explicitly checked and requested. The selector scans installed launcher apps, checks APK/split APK entries for `libil2cpp.so`, and copies game assets into `/sdcard/FusionCore/<package>`. It also reads the target game's declared permissions and may ask for missing ones before launch. No explicit camera or microphone API use was found in the reviewed launcher source; their manifest declarations remain a caution and are not a reason to grant those permissions if prompted without a clear need.
+
+The original game APK is read and copied into FusionCore's external working directory; the inspected launch path does not patch the installed game APK in place. This is source-level evidence, not a guarantee against game crashes or save issues.
+
+### Exact embedded runtime contents
+
+The official `0.045` APK contains arm64 native libraries including:
+- `libmain.so`
+- `libfusion.so`
+- `libdobby.so`
+- `libcoreclr.so` and `libclrjit.so`
+- CoreCLR support libraries.
+
+It also bundles `BepInEx-arm64.zip`, `dotnet-arm64.zip`, and `il2cpp2mono-arm64.zip`. The embedded BepInEx archive contains:
+- `core/BepInEx.Core.dll`
+- `core/BepInEx.Unity.IL2CPP.dll`
+- `core/BepInEx.Unity.Common.dll`
+- `core/Il2CppInterop.*.dll`
+- `core/MonoMod.*.dll`
+- `config/BepInEx.cfg`
+- `plugins/`
+
+### BootstrapProbe retargeted and compiled
+
+The existing harmless probe has been retargeted from NextBep's reference assemblies to the exact BepInEx Fusion assemblies embedded in FusionCore tag `0.045`. It now targets .NET 10, matching the runtime framework used by this BepInEx Fusion build.
+
+GitHub Actions run `45276358708` completed successfully:
+- Extracted the embedded runtime archive from FusionCore tag `0.045`.
+- Verified all required reference assemblies exist.
+- Built `BootstrapProbe.dll` against those assemblies.
+- Build result: 0 warnings, 0 errors.
+- Packaged the DLL at `BepInEx/plugins/BootstrapProbe.dll`.
+
+Artifact: `SRMLMobile-BootstrapProbe-FusionCore`.
+
+This is a compile/package verification only. The probe has not been executed inside Slime Rancher Mobile.
+
+### Updated readiness decision
+
+Static prerequisites now align unusually well:
+- Target game is arm64 IL2CPP and contains `libil2cpp.so`.
+- Its metadata header is valid magic/version 39; FusionCore's preliminary metadata check accepts versions 16 through 64.
+- FusionCore has a matching unstripped Unity library release for Unity `6000.3.0f1`, arm64-v8a.
+- The Unity base-library repository contains exact `6000.3.0.zip`.
+- The probe compiles against the exact embedded FusionCore BepInEx assemblies.
+
+Remaining unknowns are runtime-only: detection on the actual device, game Activity hosting, Unity initialization, IL2CPP API mapping for this exact `libil2cpp.so`, and actual plugin execution. Android 16 / OriginOS 16 and this specific game build remain untested.
