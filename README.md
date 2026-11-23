@@ -25,9 +25,10 @@ Game binaries are not stored in this repository. Keep `global-metadata.dat` and 
 python -m srml_analyzer inspect-metadata global-metadata.dat
 python -m srml_analyzer inspect-elf libil2cpp.so
 python -m srml_analyzer inspect-pair global-metadata.dat libil2cpp.so
+python -m srml_analyzer dump-strings global-metadata.dat --limit 200 --pretty
 ```
 
-Add `--pretty` for formatted JSON.
+Add `--pretty` for formatted JSON. `dump-strings` decodes the ordinary v39 UTF-8 string blob and prints up to 100 entries by default; use `--limit` to change the preview size. It does not decode the separate string-literal table yet.
 
 For metadata v39, `inspect-metadata` reports the parsed header sections and calculated index widths. For other versions, it only checks the magic/version prefix and labels any offset/size scan as exploratory.
 
@@ -40,7 +41,7 @@ python -m unittest discover -s tests -v
 ## Roadmap
 
 1. Validate the v39 header against the target game's local sample.
-2. Decode strings, images, assemblies, types, fields, methods, and parameters.
+2. Decode string literals, images, assemblies, types, fields, methods, and parameters. The ordinary name string blob has an initial bounded decoder.
 3. Resolve method pointers using the matching ELF and registration structures.
 4. Export stable JSON and human-readable dumps.
 
