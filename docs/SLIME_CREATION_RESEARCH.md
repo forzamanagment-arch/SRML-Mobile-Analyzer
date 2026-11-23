@@ -101,6 +101,33 @@ A no-root route worth evaluating is an Android Unity IL2CPP launcher/loader that
 
 Do not assume any candidate works on this title until a minimal bootstrap test passes. The target game publisher's support page currently says mobile modding is not supported and is not planned; SRML Mobile is therefore an experimental, unsupported project.
 
+## Preferred technical implementation hypothesis
+
+The first loader to test should be **BepInEx-Android / NextBep**, not a custom injector written from scratch. Its documented architecture launches the game through a launcher, intercepts Android class loading and UnityPlayer initialization, loads native bootstrap libraries, hooks `il2cpp_init`, and starts CoreCLR plus the BepInEx preloader. Its stated target is Android 9+ on arm64 Unity IL2CPP games. This matches the broad platform shape of the target, but does not prove compatibility with Slime Rancher Mobile 1.1.1103, Unity 6000.3.0f1, or this Android 16 device.
+
+Recommended separation of responsibilities:
+
+1. **SRML Mobile Manager (Android app):** create/edit slime packages, import/export mods, validate manifests, manage backups, and show logs. It does not attempt to directly inject into another app.
+2. **SRML Mobile Runtime (BepInEx plugin):** execute inside the game process, read installed mod packages, resolve IL2CPP classes, register slime definitions, diets, appearances, pedia entries, and spawn data.
+3. **SRML Mod Package:** a versioned ZIP-like package containing a manifest, JSON configuration, icon, textures, and optional prefab/material assets. It contains data by default, not arbitrary executable code.
+4. **Game adapter:** isolates game-build-specific class names, registration order, and asset loading. The first adapter targets only game 1.1.1103 / Unity 6000.3.0f1; other builds must fail closed until verified.
+
+Use the BepInEx Android launcher as an external bootstrap test harness first. Do not copy its launcher/native injection source into this repository without an explicit licensing decision: its launcher and native injection components are GPL-3.0, while BepInEx itself is LGPL-2.1. The GPL-3.0 FusionCore project is a secondary reference/fallback, not an automatic dependency.
+
+A separate manager APK cannot directly access the game's private process or memory under the normal Android sandbox. The runtime must be loaded into the game process by a supported launcher/integration path. Shizuku can help with certain device-side operations but should not be treated as the missing IL2CPP injection mechanism.
+
+## First proof-of-concept sequence
+
+1. Build or obtain a minimal BepInEx Android test plugin that logs a startup marker and reports Unity version, package identity, and IL2CPP runtime readiness.
+2. Launch the exact game build through the launcher and verify the marker appears. Do not register content yet.
+3. Resolve the target class/field types and inheritance using the matching native library.
+4. Clone one stock slime definition and reuse its existing prefab/appearance. Add only a unique ID and a test Slimepedia mapping.
+5. Verify the slime can be looked up and spawned in a disposable/backed-up save.
+6. Add diet and spawn constraints, then custom appearance assets and user-created textures.
+7. Build the visual slime creator only after the runtime proof works.
+
+If the loader cannot start this Unity build, fall back to a controlled APK-patching experiment that embeds the loader into the game package. Keep the original installation and saves untouched until a reliable backup/restore path is proven. This fallback is more invasive and should not be the first experiment.
+
 ## Current next milestone
 
 Produce a target-game asset inventory for one stock slime and one spawn location, then resolve the native type mappings. Only after those two evidence sets are available should implementation begin.
