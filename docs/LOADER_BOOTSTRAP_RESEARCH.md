@@ -504,3 +504,29 @@ The smallest useful next artifact is the target game's DEX bytecode, not its lar
 We need determine whether `UnityPlayer`, `UnityPlayerForActivityOrService`, and `UnityPlayerForGameActivity` are present, which one declares `currentActivity`, and which Activity class is the manifest launcher. Do not infer this from Unity version alone.
 
 No target APK DEX has been supplied or inspected yet. Do not claim the bridge-field mismatch is confirmed until that inspection is complete.
+
+
+### Follow-up: target APK DEX inspection (2026-11-24)
+
+The user supplied `classes.dex`, `classes2.dex`, and `classes3.dex` from the target game APK. All three have valid DEX magic/version headers and were successfully parsed.
+
+Observed class counts:
+- `classes.dex`: 8,068 class definitions.
+- `classes2.dex`: 5,374 class definitions.
+- `classes3.dex`: 17 class definitions.
+
+Relevant findings in `classes2.dex`:
+- `com.unity3d.player.UnityPlayer` is present.
+- It declares a static field `currentActivity` of type `android.app.Activity`.
+- `com.unity3d.player.UnityPlayerForActivityOrService` is present and extends `UnityPlayer`.
+- `com.unity3d.player.UnityPlayerForGameActivity` is present and extends `UnityPlayer`.
+- `com.unity3d.player.UnityPlayerActivity` is present and extends `android.app.Activity`.
+- `com.google.firebase.MessagingUnityPlayerActivity` is present and extends `UnityPlayerActivity`.
+
+This **falsifies the specific earlier suspicion** that the target's UnityPlayer base class necessarily lacks the `currentActivity` field. The field is explicitly declared on the base class in the supplied DEX, so FusionCore's first candidate class does have the field it looks up. This does not prove the field is populated at the moment FusionCore queries it, nor that the target launch Activity is one of the listed classes.
+
+The supplied DEX files do not include the target APK's AndroidManifest.xml, so they do not establish which Activity is the actual launcher or whether the launch Intent contains FusionCore's expected `fusioncore.config` Parcelable. The immediate null-config dereference remains confirmed; the upstream cause is still unresolved.
+
+Next diagnostic artifact: the target APK's decoded manifest or a screenshot/export of its application Activities and launcher Activity from MT Manager. Specifically verify the `MAIN` + `LAUNCHER` Activity and its fully-qualified class name. Do not infer the launcher from the presence of `UnityPlayerActivity` alone.
+
+The obfuscated Activity in `classes3.dex` is not identified as the launcher from DEX structure alone; no conclusion is drawn about its purpose.
