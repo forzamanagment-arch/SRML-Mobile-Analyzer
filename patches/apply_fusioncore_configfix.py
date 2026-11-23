@@ -58,6 +58,17 @@ if source.count(anchor) != 1:
     raise SystemExit(f"Expected exactly one Instrumentation.start anchor, found {source.count(anchor)}")
 runtime.write_text(source.replace(anchor, replacement), encoding="utf-8")
 
+settings = Path("settings.gradle.kts")
+settings_text = settings.read_text(encoding="utf-8")
+foojay_block = """plugins {
+    id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
+}
+
+"""
+if settings_text.count(foojay_block) != 1:
+    raise SystemExit("Expected exactly one optional Foojay resolver plugin block")
+settings.write_text(settings_text.replace(foojay_block, ""), encoding="utf-8")
+
 gradle = Path("fusionApp/build.gradle.kts")
 build = gradle.read_text(encoding="utf-8")
 
