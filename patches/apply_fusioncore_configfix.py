@@ -1,5 +1,7 @@
 from pathlib import Path
 
+# Patch target is pinned to FusionCore commit bf4c69d9d4724e4eff058664a5be0a1d9cfd4e61.
+
 runtime = Path("fusionApp/src/main/java/dev/allofus/fusioncore/hooks/GameRuntime.java")
 source = runtime.read_text(encoding="utf-8")
 
