@@ -45,6 +45,12 @@ On Android, open [`web/analyzer-offline.html`](web/analyzer-offline.html) in a m
 
 For metadata v39, `inspect-metadata` reports the parsed header sections and calculated index widths. For other versions, it only checks the magic/version prefix and labels any offset/size scan as exploratory.
 
+## Research documents
+
+- [Custom slime creation research](docs/SLIME_CREATION_RESEARCH.md)
+- [Addon package format](docs/ADDON_FORMAT.md)
+- [Android loader and Manager bootstrap research](docs/LOADER_BOOTSTRAP_RESEARCH.md)
+
 ## Development
 
 ```bash
