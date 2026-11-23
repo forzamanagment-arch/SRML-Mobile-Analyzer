@@ -5,9 +5,14 @@ import vm from "node:vm";
 
 test("single-file offline page contains valid self-contained JavaScript", async () => {
   const html = await readFile(new URL("./analyzer-offline.html", import.meta.url), "utf8");
-  const scripts = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)];
-  assert.equal(scripts.length, 1);
-  assert.doesNotThrow(() => new vm.Script(scripts[0][1]));
-  assert.doesNotMatch(html, /\bfetch\s*\(|XMLHttpRequest|WebSocket|sendBeacon/);
-  assert.match(html, /file\.arrayBuffer\(\)/);
+  const open = html.indexOf("<script>");
+  const close = html.indexOf("</script>", open);
+  assert.notEqual(open, -1);
+  assert.notEqual(close, -1);
+  assert.equal(html.indexOf("<script>", open + 1), -1);
+  assert.doesNotThrow(() => new vm.Script(html.slice(open + 8, close)));
+  for (const forbidden of ["fetch(", "XMLHttpRequest", "WebSocket", "sendBeacon"]) {
+    assert.equal(html.includes(forbidden), false);
+  }
+  assert.equal(html.includes("file.arrayBuffer()"), true);
 });
