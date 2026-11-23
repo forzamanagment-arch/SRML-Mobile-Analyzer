@@ -1,5 +1,6 @@
 name: Build FusionCore config-forwarding test APK
 # Experimental side-by-side validation build; never patches the installed game APK.
+# SDK packages are explicitly listed to avoid the retired legacy 'tools' package.
 
 on:
   push:
@@ -55,7 +56,7 @@ jobs:
       - name: Install Android build components
         run: |
           yes | sdkmanager --licenses >/dev/null
-          sdkmanager "platforms;android-37" "build-tools;37.0.0" "cmake;3.22.1" "ndk;27.2.12479018"
+          sdkmanager "platforms;android-36" "build-tools;36.0.0" "cmake;3.22.1" "ndk;27.2.12479018"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v5
@@ -71,8 +72,8 @@ jobs:
         run: |
           APK="$(find fusionApp/build/outputs/apk/debug -name '*.apk' -print -quit)"
           test -n "$APK"
-          "$ANDROID_HOME/build-tools/37.0.0/aapt" dump badging "$APK" | grep "package: name='dev.allofus.fusioncore.configfix'"
-          "$ANDROID_HOME/build-tools/37.0.0/apksigner" verify "$APK"
+          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$APK" | grep "package: name='dev.allofus.fusioncore.configfix'"
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify "$APK"
 
       - name: Upload patched test APK
         uses: actions/upload-artifact@v4

@@ -1,5 +1,7 @@
 from pathlib import Path
 
+# Patch target is pinned to FusionCore commit bf4c69d9d4724e4eff058664a5be0a1d9cfd4e61.
+
 runtime = Path("fusionApp/src/main/java/dev/allofus/fusioncore/hooks/GameRuntime.java")
 source = runtime.read_text(encoding="utf-8")
 
@@ -56,8 +58,35 @@ if source.count(anchor) != 1:
     raise SystemExit(f"Expected exactly one Instrumentation.start anchor, found {source.count(anchor)}")
 runtime.write_text(source.replace(anchor, replacement), encoding="utf-8")
 
+settings = Path("settings.gradle.kts")
+settings_text = settings.read_text(encoding="utf-8")
+foojay_block = """plugins {
+    id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
+}
+
+"""
+if settings_text.count(foojay_block) != 1:
+    raise SystemExit("Expected exactly one optional Foojay resolver plugin block")
+settings.write_text(settings_text.replace(foojay_block, ""), encoding="utf-8")
+
 gradle = Path("fusionApp/build.gradle.kts")
 build = gradle.read_text(encoding="utf-8")
+
+# Keep the upstream app on API 36 in this reproducible build environment.
+# AndroidX Core 1.19.0 requires API 37, which is not yet available from sdkmanager here.
+# 1.17.0 is the preceding stable Core line and supports API 36.
+for old, new in [
+    ('androidx.core:core:1.19.0', 'androidx.core:core:1.17.0'),
+]:
+    if build.count(old) != 1:
+        raise SystemExit(f"Expected exactly one {old} dependency")
+    build = build.replace(old, new)
+
+sdk_anchor = "    compileSdk = 37\n"
+if build.count(sdk_anchor) != 1:
+    raise SystemExit(f"Expected exactly one compileSdk 37 setting, found {build.count(sdk_anchor)}")
+build = build.replace(sdk_anchor, "    compileSdk = 36\n")
+
 anchor = """    buildTypes {
         release {
 """
