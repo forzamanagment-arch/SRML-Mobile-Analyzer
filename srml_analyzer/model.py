@@ -61,10 +61,9 @@ def build_model(data: bytes) -> dict:
                      len(vtable_methods), errors)
         _check_range(label + " interface offsets", item["interface_offsets_start"],
                      item["interface_offsets_count"], len(interface_offsets), errors)
-        for key in ("declaring_type_index", "parent_type_index"):
-            ref = item[key]
-            if ref != -1 and not 0 <= ref < len(types):
-                errors.append(f"{label} {key}={ref} is outside type-definition table size {len(types)}.")
+        # In v39 these serialized references are TypeIndex values, not
+        # TypeDefinition indices. Their target entries live in the native
+        # metadata-registration type array and are resolved with libil2cpp.so.
 
     for index, nested in enumerate(nested_types):
         if nested != -1 and not 0 <= nested < len(types):
@@ -117,7 +116,10 @@ def build_model(data: bytes) -> dict:
 
     # TypeIndex values refer to the native metadata-registration type array,
     # not directly to TypeDefinitions. Their names are resolved in the ELF stage.
-    unresolved_type_refs = sum(1 for x in fields if x["type_index"] != -1)
+    unresolved_type_refs = sum(1 for x in types
+                               for key in ("byval_type_index", "declaring_type_index", "parent_type_index")
+                               if x[key] != -1)
+    unresolved_type_refs += sum(1 for x in fields if x["type_index"] != -1)
     unresolved_type_refs += sum(1 for x in parameters if x["type_index"] != -1)
     unresolved_type_refs += sum(1 for x in events if x["type_index"] != -1)
     unresolved_type_refs += sum(1 for x in interfaces if x != -1)
