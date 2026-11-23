@@ -49,12 +49,16 @@ The v39 image decoder reads the version-appropriate image record, including vari
 
 ## Important limitations
 
-- The v39 header parser validates header fields and section bounds. Image and assembly records have bounded decoders; type, field, method, and parameter records are not yet decoded.
-- String, string-literal, image, and assembly decoders currently have synthetic tests only. The target game's actual metadata file has not yet been processed by the project workflow.
+- The v39 header parser validates header fields and section bounds. Image, assembly, type, field, method, and parameter records have bounded decoders.
+- String, string-literal, image, assembly, type, field, method, and parameter decoders currently have synthetic tests only. The target game's actual metadata file has not yet been processed by the project workflow.
 - The header schema is based on a reviewed reference implementation, not an independently published Unity specification.
 - The ELF inspector validates the basic ELF64 little-endian header and ordinary program/section table bounds. Extended section numbering is not implemented. It does not parse dynamic symbols, relocations, or IL2CPP registration structures.
 - No target-game binary is stored in this public repository.
 
+### Core type and member records
+
+The v39 type-definition decoder reads compact TypeIndex and GenericContainerIndex values, the fixed member-range/count fields, flags, bitfield, and token. For v35+, the former element-type field is absent; the enum underlying type is represented by the parent type index. Field and parameter records use compact TypeIndex values. Method records use compact type-definition, type, parameter-definition, and generic-container indices. All four decoders validate exact table sizes and resolve names through the bounded string pool. The layouts follow the reviewed v38/v39 record definitions in Perfare/Il2CppDumper PR #922. They have synthetic fixtures only and are not yet validated against the target game.
+
 ## Next research target
 
-Run the parser against the target game's local `global-metadata.dat` without committing the binary. Then implement and test v39 type, field, method, and parameter record decoders.
+Run the parser against the target game's local `global-metadata.dat` without committing the binary. Then add cross-table range validation, properties/events/generic metadata, and ELF registration analysis.
