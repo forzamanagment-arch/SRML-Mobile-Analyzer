@@ -530,3 +530,35 @@ The supplied DEX files do not include the target APK's AndroidManifest.xml, so t
 Next diagnostic artifact: the target APK's decoded manifest or a screenshot/export of its application Activities and launcher Activity from MT Manager. Specifically verify the `MAIN` + `LAUNCHER` Activity and its fully-qualified class name. Do not infer the launcher from the presence of `UnityPlayerActivity` alone.
 
 The obfuscated Activity in `classes3.dex` is not identified as the launcher from DEX structure alone; no conclusion is drawn about its purpose.
+
+
+### Follow-up: target APK binary AndroidManifest.xml parsed (2026-11-24)
+
+The user supplied the target APK's binary `AndroidManifest.xml`. It was parsed directly as Android binary XML; no re-export from MT Manager was necessary.
+
+Manifest identity:
+- Package: `com.playdigious.slimerancher`
+- Version name: `1.1.1103`; version code: `609`
+- minSdk: 29; targetSdk: 36; compileSdk: 36.
+- Application class: `android.app.Application`.
+
+**Actual `MAIN` + `LAUNCHER` Activity:**
+- `com.m8bjh1b7.w1cn8q.F587w173`
+- Exported: true
+- launchMode: 2 (`singleTask`)
+- screenOrientation: 6
+- It is an obfuscated application Activity, not one of the standard Unity/Firebase Activity class names.
+
+DEX cross-check:
+- The class `com.m8bjh1b7.w1cn8q.F587w173` is present in `classes3.dex`.
+- Its direct superclass is `android.app.Activity`, not `UnityPlayerActivity` and not `UnityPlayerForGameActivity`.
+- Its DEX class-data lists methods `onCreate`, `startOriginalLauncher`, a constructor, and a synthetic lambda method.
+- The manifest separately declares `com.google.firebase.MessagingUnityPlayerActivity` as an exported Activity with `unityplayer.UnityActivity=true` metadata, but it has no `MAIN` / `LAUNCHER` intent filter in this manifest.
+
+Interpretation:
+- The app's launcher entry point is a custom/obfuscated wrapper Activity. It is not the Firebase Unity Activity declared separately.
+- This is a concrete new lead for FusionCore's failure: its launch/hook path may be assuming that the launcher Activity is the Unity Activity, or the wrapper may launch/delegate to the original Unity Activity in a way FusionCore's Activity/config propagation does not preserve.
+- This does **not** yet prove the wrapper is the cause. Its method names show a `startOriginalLauncher` helper, but the method's full behavior has not yet been disassembled, and the manifest alone cannot establish which Activity is current when native Fusion bootstrap asks for `fusioncore.config`.
+- The earlier hypothesis that `currentActivity` is absent from the UnityPlayer base class remains falsified by DEX inspection.
+
+Next source-level diagnostic: inspect the bytecode of `F587w173.onCreate()` and `startOriginalLauncher()`, identify the actual target Activity class it starts, and compare that with FusionCore's Activity/Intent hooks. This should determine whether the wrapper is a simple trampoline, a protection/loader layer, or a custom Unity launch path. Do not patch the game or FusionCore until this flow is understood.
