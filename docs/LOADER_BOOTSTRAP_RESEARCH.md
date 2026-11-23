@@ -231,3 +231,37 @@ The most economical route is:
 - BepInEx IL2CPP install documentation: https://docs.bepinex.dev/v6.0.0-pre.1/articles/user_guide/installation/unity_il2cpp.html
 
 This is a research and implementation plan, not a claim that the loader has already been run against Slime Rancher Mobile.
+
+
+## Additional source-level inspection (not just README claims)
+
+The following files were inspected in the NextBep launcher repository:
+
+- `app/src/main/java/com/bepinex/android/GameDetector.kt`
+- `app/src/main/java/com/bepinex/android/BootstrapActivity.kt`
+- `app/src/main/java/com/bepinex/android/FileExtractor.kt`
+- `app/src/main/cpp/main/main.cpp`
+- `TestPlugin/Plugin.cs`
+
+Confirmed from source:
+
+1. **Game detection:** `GameDetector` queries launchable activities, checks the installed APK as a ZIP for `lib/<abi>/libil2cpp.so`, and records package/version information. It does not currently prove that the game is compatible; detection only identifies an IL2CPP-shaped target.
+2. **Bootstrap launch:** `BootstrapActivity` obtains the target package context with code access, prepares a game classloader, resolves the target launch Activity, prepares per-game runtime state, installs Android-side hooks, initializes native library routing, then starts a stub Activity that is rewritten to the game's real launch Activity.
+3. **Storage:** the launcher requests all-files access on Android 11+ for its documented external per-game runtime/mod data. The .NET runtime is extracted into launcher-private storage. This is an important integration and user-permission consideration for our Manager.
+4. **Native stage:** `main.cpp` loads the NextBep/native runtime libraries, initializes the Fusion bootstrap, and routes Unity and IL2CPP library loading. This is a concrete native bootstrap implementation, not a normal Android app launch.
+5. **Test plugin:** the sample plugin derives from BepInEx `BasePlugin` and writes a distinct startup marker from `Load()`. This is exactly the kind of harmless smoke test we should use before touching game objects.
+
+### Implication for our Manager
+
+NextBep already has its own launcher UI, storage model, and modpack manager. It is not enough for SRML Mobile Manager to write an addon into an arbitrary directory and launch the game's normal icon: the game must be started through the bootstrap flow.
+
+For the first experiment, use NextBep's own UI and its sample plugin unchanged. If that works on the target, the next implementation decision is whether SRML Mobile Manager becomes a licensed integration/fork or whether NextBep exposes a stable external launch/import contract we can use. Do not invent an intent action or private API before verifying it in source.
+
+### Evidence boundaries
+
+The source inspection confirms how the launcher is designed. It does not confirm that:
+- the target game passes its game-detection and bootstrap steps;
+- Android 16 / OriginOS permits every required hook on this device;
+- the target Unity 6000.3.0f1 build initializes BepInEx and Il2CppInterop successfully;
+- a plugin can resolve Slime Rancher Mobile's game types;
+- a custom slime can be registered.
