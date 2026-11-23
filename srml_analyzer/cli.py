@@ -10,6 +10,7 @@ from .metadata import inspect_metadata
 from .elf import inspect_elf
 from .strings import inspect_string_pool
 from .string_literals import inspect_string_literals
+from .images_assemblies import inspect_images, inspect_assemblies
 
 
 def nonnegative_int(value: str) -> int:
@@ -40,6 +41,16 @@ def build_parser() -> argparse.ArgumentParser:
     literals.add_argument("--limit", type=nonnegative_int, default=100)
     literals.add_argument("--pretty", action="store_true")
 
+    images = sub.add_parser("dump-images")
+    images.add_argument("file")
+    images.add_argument("--limit", type=nonnegative_int, default=100)
+    images.add_argument("--pretty", action="store_true")
+
+    assemblies = sub.add_parser("dump-assemblies")
+    assemblies.add_argument("file")
+    assemblies.add_argument("--limit", type=nonnegative_int, default=100)
+    assemblies.add_argument("--pretty", action="store_true")
+
     pair = sub.add_parser("inspect-pair")
     pair.add_argument("metadata")
     pair.add_argument("elf")
@@ -58,6 +69,10 @@ def main(argv: list[str] | None = None) -> int:
             result = inspect_string_pool(args.file, limit=args.limit)
         elif args.command == "dump-literals":
             result = inspect_string_literals(args.file, limit=args.limit)
+        elif args.command == "dump-images":
+            result = inspect_images(args.file, limit=args.limit)
+        elif args.command == "dump-assemblies":
+            result = inspect_assemblies(args.file, limit=args.limit)
         else:
             result = {
                 "metadata": inspect_metadata(args.metadata),
