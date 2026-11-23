@@ -4,9 +4,21 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+
 from .errors import AnalyzerError
 from .metadata import inspect_metadata
 from .elf import inspect_elf
+from .strings import inspect_string_pool
+
+
+def nonnegative_int(value: str) -> int:
+    try:
+        parsed = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("must be an integer") from exc
+    if parsed < 0:
+        raise argparse.ArgumentTypeError("must be zero or greater")
+    return parsed
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -16,6 +28,12 @@ def build_parser() -> argparse.ArgumentParser:
         cmd = sub.add_parser(name)
         cmd.add_argument("file")
         cmd.add_argument("--pretty", action="store_true")
+
+    strings = sub.add_parser("dump-strings")
+    strings.add_argument("file")
+    strings.add_argument("--limit", type=nonnegative_int, default=100)
+    strings.add_argument("--pretty", action="store_true")
+
     pair = sub.add_parser("inspect-pair")
     pair.add_argument("metadata")
     pair.add_argument("elf")
@@ -30,6 +48,8 @@ def main(argv: list[str] | None = None) -> int:
             result = inspect_metadata(args.file)
         elif args.command == "inspect-elf":
             result = inspect_elf(args.file)
+        elif args.command == "dump-strings":
+            result = inspect_string_pool(args.file, limit=args.limit)
         else:
             result = {
                 "metadata": inspect_metadata(args.metadata),
@@ -43,6 +63,6 @@ def main(argv: list[str] | None = None) -> int:
             }
         print(json.dumps(result, indent=2 if args.pretty else None, ensure_ascii=False))
         return 0
-    except (AnalyzerError, OSError) as exc:
+    except (AnalyzerError, OSError, ValueError) as exc:
         print(json.dumps({"error": str(exc)}, ensure_ascii=False), file=sys.stderr)
         return 2
