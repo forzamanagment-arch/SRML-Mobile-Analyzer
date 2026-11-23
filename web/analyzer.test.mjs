@@ -14,7 +14,7 @@ function emptyV39() {
 }
 
 function sampleV39() {
-  const names = new TextEncoder().encode("Thing\\0System\\0value\\0Run\\0arg\\0");
+  const names = new TextEncoder().encode("Thing\0System\0value\0Run\0arg\0");
   const payloads = {
     strings: [names, 5],
     fields: [join(u32(13), Uint8Array.of(1), u32(0x04000001)), 1],
