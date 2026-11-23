@@ -51,7 +51,73 @@ jobs:
             unzip -Z1 "$apk" | grep '^lib/arm64-v8a/.*\.so$' | sort | tee "inspection/$tag-native-libs.txt"
 
             echo "=== Bundled runtime assets: $tag ==="
-            unzip -Z1 "$apk" | grep -E '^assets/.*(BepInEx|dotnet|il2cpp2mono).*\.zip$' | sort | tee "inspection/$tag-runtime-assets.txt" || true
+            unzip -Z1 "$apk" | grep -E '^assets/.*(BepInEx|dotnet|il2cpp2mono).*\.zip
+
+          download_and_inspect "0.0.4" "90bcbf4e8ca0bba1ceefc6c08a072e12525d76dd696040b61db531018290e3a3"
+          download_and_inspect "0.045" "661ad5ebaef78c9ea395d7751f9c4f758b263008a4e012d1167cc6ae3aec3602"
+
+          cert_old="$(grep -m1 'certificate SHA-256 digest:' inspection/0.0.4-signature.txt | sed 's/.*digest: //' | tr -d ':[:space:]' | tr '[:upper:]' '[:lower:]')"
+          cert_new="$(grep -m1 'certificate SHA-256 digest:' inspection/0.045-signature.txt | sed 's/.*digest: //' | tr -d ':[:space:]' | tr '[:upper:]' '[:lower:]')"
+
+          {
+            echo "FusionCore upstream APK inspection"
+            echo "Older release: 0.0.4"
+            echo "Latest inspected release: 0.045"
+            echo "0.0.4 signing certificate SHA-256: $cert_old"
+            echo "0.045 signing certificate SHA-256: $cert_new"
+            if [[ -n "$cert_old" && "$cert_old" == "$cert_new" ]]; then
+              echo "Certificate continuity: MATCH"
+            else
+              echo "Certificate continuity: DIFFERENT OR UNREADABLE"
+              exit 1
+            fi
+            echo
+            echo "Package metadata and permissions are in the adjacent inspection text files."
+          } | tee inspection/summary.txt
+
+      - name: Upload inspection report
+        uses: actions/upload-artifact@v4
+        with:
+          name: fusioncore-upstream-apk-inspection
+          path: inspection/
+          if-no-files-found: error
+ | sort | tee "inspection/$tag-runtime-assets.txt" || true
+
+            echo "=== BepInEx runtime contents: $tag ==="
+            local runtime_zip="inspection/$tag-BepInEx-arm64.zip"
+            unzip -p "$apk" assets/BepInEx-arm64.zip > "$runtime_zip"
+            unzip -Z1 "$runtime_zip" | grep -E '(^|/)(BepInEx\.Core|BepInEx\.Unity\.IL2CPP|Il2CppInterop\.Runtime|Il2CppInterop\.Common|MonoMod\.RuntimeDetour).*\.dll$|BepInEx\.cfg|/plugins/?
+
+          download_and_inspect "0.0.4" "90bcbf4e8ca0bba1ceefc6c08a072e12525d76dd696040b61db531018290e3a3"
+          download_and_inspect "0.045" "661ad5ebaef78c9ea395d7751f9c4f758b263008a4e012d1167cc6ae3aec3602"
+
+          cert_old="$(grep -m1 'certificate SHA-256 digest:' inspection/0.0.4-signature.txt | sed 's/.*digest: //' | tr -d ':[:space:]' | tr '[:upper:]' '[:lower:]')"
+          cert_new="$(grep -m1 'certificate SHA-256 digest:' inspection/0.045-signature.txt | sed 's/.*digest: //' | tr -d ':[:space:]' | tr '[:upper:]' '[:lower:]')"
+
+          {
+            echo "FusionCore upstream APK inspection"
+            echo "Older release: 0.0.4"
+            echo "Latest inspected release: 0.045"
+            echo "0.0.4 signing certificate SHA-256: $cert_old"
+            echo "0.045 signing certificate SHA-256: $cert_new"
+            if [[ -n "$cert_old" && "$cert_old" == "$cert_new" ]]; then
+              echo "Certificate continuity: MATCH"
+            else
+              echo "Certificate continuity: DIFFERENT OR UNREADABLE"
+              exit 1
+            fi
+            echo
+            echo "Package metadata and permissions are in the adjacent inspection text files."
+          } | tee inspection/summary.txt
+
+      - name: Upload inspection report
+        uses: actions/upload-artifact@v4
+        with:
+          name: fusioncore-upstream-apk-inspection
+          path: inspection/
+          if-no-files-found: error
+ | sort | tee "inspection/$tag-bepinex-core-files.txt"
+            rm -f "$runtime_zip"
           }
 
           download_and_inspect "0.0.4" "90bcbf4e8ca0bba1ceefc6c08a072e12525d76dd696040b61db531018290e3a3"
