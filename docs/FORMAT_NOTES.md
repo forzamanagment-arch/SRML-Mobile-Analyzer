@@ -35,22 +35,26 @@ The v39 header parser is covered by synthetic tests. This is not yet proof that 
 
 ## String pool decoder
 
-The v39 `strings` section is a shared UTF-8 byte blob. Name indices are byte offsets into this blob, and strings are NUL-terminated; they are not sequential table-record IDs. The separate `string_literals` table is not decoded by this feature. The reference implementation resolves ordinary names by adding the stored index to `stringOffset` and reading through the next NUL byte. For v35 and later, string-literal lengths are derived from adjacent literal data offsets rather than the legacy per-literal length field.
+The v39 `strings` section is a shared UTF-8 byte blob. Name indices are byte offsets into this blob, and strings are NUL-terminated; they are not sequential table-record IDs. The separate `string_literals` table uses its own data-index records. The reference implementation resolves ordinary names by adding the stored index to `stringOffset` and reading through the next NUL byte. For v35 and later, string-literal lengths are derived from adjacent literal data offsets rather than the legacy per-literal length field.
 
-The analyzer now provides `dump-strings`, which scans the bounded string section, validates UTF-8 and terminators, preserves each string's byte offset, and emits a limited preview. The v39 header's `strings.count` field is reported but deliberately not treated as the number of NUL-separated entries until that field's semantics are independently confirmed.
+The analyzer provides `dump-strings`, which scans the bounded string section, validates UTF-8 and terminators, preserves each string's byte offset, and emits a limited preview. Image and assembly names are resolved directly by byte offset through the same bounded string blob. The v39 header's `strings.count` field is reported but deliberately not treated as the number of NUL-separated entries until that field's semantics are independently confirmed.
 
 ### String-literal table
 
 The v39 `string_literals` records contain a single 32-bit `dataIndex`; the legacy per-record `length` field is absent. The decoder validates the table size against the explicit record count, checks that data offsets are monotonic and bounded, and derives each UTF-8 literal's length from the next record or the end of `string_literal_data`. This follows the v38+ record definition and the v35+ length calculation in the reviewed Il2CppDumper implementation. It has synthetic tests only; the target game's sample has not yet been checked.
 
+### Image and assembly records
+
+The v39 image decoder reads the version-appropriate image record, including variable-width type-definition indices, and resolves the image name through the shared string pool. The assembly decoder reads the v38+ assembly record, including the added module token and assembly-name fields, then resolves its name and culture strings. Both decoders validate that the declared table byte size exactly matches the expected record count and record size. Synthetic tests cover name resolution, fields, and malformed table sizes; target-game validation is still pending.
+
 ## Important limitations
 
-- The v39 header parser validates header fields and section bounds; it does not decode table records.
-- Image, assembly, type, field, method, and parameter records are not yet decoded. Both the ordinary v39 string blob and the separate string-literal table now have bounded decoders.
+- The v39 header parser validates header fields and section bounds. Image and assembly records have bounded decoders; type, field, method, and parameter records are not yet decoded.
+- String, string-literal, image, and assembly decoders currently have synthetic tests only. The target game's actual metadata file has not yet been processed by the project workflow.
 - The header schema is based on a reviewed reference implementation, not an independently published Unity specification.
 - The ELF inspector validates the basic ELF64 little-endian header and ordinary program/section table bounds. Extended section numbering is not implemented. It does not parse dynamic symbols, relocations, or IL2CPP registration structures.
 - No target-game binary is stored in this public repository.
 
 ## Next research target
 
-Run the parser against the target game's local `global-metadata.dat` without committing the binary. Then implement and test v39 record decoders, starting with strings, images, assemblies, types, fields, methods, and parameters.
+Run the parser against the target game's local `global-metadata.dat` without committing the binary. Then implement and test v39 type, field, method, and parameter record decoders.
