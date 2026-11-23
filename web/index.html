@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#08090c">
+<title>SRML Metadata Analyzer</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#08090c;color:#f3f4f6}
+*{box-sizing:border-box}body{margin:0;padding:22px 14px 40px;background:radial-gradient(ellipse at top,#171a24 0,#08090c 55%);min-height:100vh}
+main{max-width:920px;margin:auto}.eyebrow{font-size:12px;letter-spacing:.13em;text-transform:uppercase;color:#9ca3af}
+h1{font-size:clamp(26px,6vw,38px);margin:8px 0 6px;letter-spacing:-.04em}.sub{color:#a1a1aa;line-height:1.55;margin:0 0 22px}
+.panel{background:#111319;border:1px solid #292d38;border-radius:18px;padding:18px;margin:14px 0;box-shadow:0 12px 36px #0005}
+.drop{border:1px dashed #555d70;border-radius:14px;padding:22px 14px;text-align:center}
+input[type=file]{width:100%;max-width:100%;color:#cbd5e1;margin-top:12px}
+button{border:0;border-radius:12px;padding:12px 16px;font-weight:650;background:#e5e7eb;color:#111827;margin:10px 8px 0 0}
+button:disabled{opacity:.4}button.secondary{background:#252a35;color:#e5e7eb}
+#status{margin-top:14px;color:#cbd5e1;white-space:pre-wrap;line-height:1.5}
+.metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.metric{background:#191d26;border-radius:12px;padding:12px;min-width:0}.metric b{display:block;font-size:22px}.metric span{color:#9ca3af;font-size:12px}
+#classes{display:grid;gap:10px}.class{background:#171b23;border:1px solid #2a303c;border-radius:13px;padding:13px}
+.class h3{font-size:15px;margin:0 0 8px;overflow-wrap:anywhere}.muted{color:#9ca3af;font-size:12px}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:520px;overflow:auto;background:#090b10;border-radius:12px;padding:12px;font-size:11px;color:#d1d5db}
+.note{font-size:12px;color:#9ca3af;line-height:1.55}.good{color:#86efac}.bad{color:#fca5a5}
+@media(min-width:650px){.metrics{grid-template-columns:repeat(4,minmax(0,1fr))}.panel{padding:22px}}
+</style>
+</head>
+<body>
+<main>
+  <div class="eyebrow">SRML MOBILE · OFFLINE TOOL</div>
+  <h1>Metadata Analyzer</h1>
+  <p class="sub">Локальный просмотрщик Unity IL2CPP metadata v39. Выбери файл <code>global-metadata.dat</code>, чтобы получить структуру классов и список участников.</p>
+  <section class="panel">
+    <div class="drop">
+      <strong>Выбери global-metadata.dat</strong>
+      <input id="file" type="file" accept=".dat,.bin,application/octet-stream">
+    </div>
+    <div id="status" role="status">Файл ещё не выбран.</div>
+    <button id="download" disabled>Скачать JSON-отчёт</button>
+    <button id="clear" class="secondary">Очистить</button>
+    <p class="note">Файл обрабатывается прямо в браузере на устройстве. Эта страница не содержит загрузки файла на сервер или внешних сетевых запросов. Поддерживается только metadata v39; имена TypeIndex будут добавлены после анализа регистрации в libil2cpp.so.</p>
+  </section>
+  <section id="summary" class="panel" hidden>
+    <h2>Сводка</h2><div id="metrics" class="metrics"></div>
+    <p id="validation" class="note"></p>
+  </section>
+  <section id="classPanel" class="panel" hidden>
+    <h2>Классы</h2><div id="classes"></div>
+  </section>
+  <section id="jsonPanel" class="panel" hidden>
+    <h2>JSON</h2><pre id="json"></pre>
+  </section>
+</main>
+<script type="module">
+import { decode } from "./analyzer.js";
+const fileInput=document.querySelector("#file");
+const status=document.querySelector("#status");
+const download=document.querySelector("#download");
+const clear=document.querySelector("#clear");
+let report=null;
+function reset(){
+  report=null;download.disabled=true;fileInput.value="";
+  document.querySelector("#summary").hidden=true;
+  document.querySelector("#classPanel").hidden=true;
+  document.querySelector("#jsonPanel").hidden=true;
+  status.textContent="Файл ещё не выбран.";status.className="";
+}
+function metric(label,value){
+  const node=document.createElement("div");node.className="metric";
+  const b=document.createElement("b");b.textContent=String(value);
+  const s=document.createElement("span");s.textContent=label;
+  node.append(b,s);return node;
+}
+function render(result,name){
+  report={file:name,...result};
+  const metrics=document.querySelector("#metrics");metrics.replaceChildren();
+  for(const [key,value] of Object.entries(result.counts)) metrics.append(metric(key,value));
+  document.querySelector("#summary").hidden=false;
+  const validation=document.querySelector("#validation");
+  validation.textContent=result.validation.errors.length
+    ? "Ошибки структуры: "+result.validation.errors.join(" | ")
+    : "Ошибок диапазонов не найдено. "+result.validation.warnings.join(" ");
+  validation.className=result.validation.errors.length?"note bad":"note good";
+  const list=document.querySelector("#classes");list.replaceChildren();
+  for(const type of result.types.slice(0,150)){
+    const card=document.createElement("article");card.className="class";
+    const h=document.createElement("h3");h.textContent=type.full_name||"(без имени)";
+    const meta=document.createElement("div");meta.className="muted";
+    meta.textContent=`#${type.index} · fields ${type.fields.length} · methods ${type.methods.length} · properties ${type.properties.length} · events ${type.events.length}`;
+    const detail=document.createElement("div");detail.className="muted";
+    const members=[...type.fields.map(x=>"field "+x.name),...type.methods.map(x=>"method "+x.name),
+      ...type.properties.map(x=>"property "+x.name),...type.events.map(x=>"event "+x.name)];
+    detail.textContent=members.length?members.join(" · "):"Нет декодированных участников";
+    card.append(h,meta,detail);list.append(card);
+  }
+  if(result.types.length>150){const rest=document.createElement("p");rest.className="note";rest.textContent=`Показаны первые 150 из ${result.types.length} классов. Полный список находится в JSON-отчёте.`;list.append(rest);}
+  document.querySelector("#classPanel").hidden=false;
+  document.querySelector("#json").textContent=JSON.stringify(report,null,2);
+  document.querySelector("#jsonPanel").hidden=false;
+  download.disabled=false;
+  status.textContent=`Обработан файл: ${name}\nMetadata v${result.version||39}. Статус: ${result.status}.`;
+  status.className=result.validation.errors.length?"bad":"good";
+}
+fileInput.addEventListener("change",async()=>{
+  const file=fileInput.files?.[0];if(!file)return;
+  status.textContent="Читаю файл локально…";status.className="";
+  try{const buffer=await file.arrayBuffer();render(decode(buffer),file.name);}
+  catch(error){report=null;download.disabled=true;status.textContent="Ошибка: "+(error?.message||String(error));status.className="bad";}
+});
+download.addEventListener("click",()=>{
+  if(!report)return;
+  const blob=new Blob([JSON.stringify(report,null,2)],{type:"application/json"});
+  const url=URL.createObjectURL(blob);const a=document.createElement("a");
+  a.href=url;a.download="srml-metadata-report.json";a.click();URL.revokeObjectURL(url);
+});
+clear.addEventListener("click",reset);
+</script>
+</body>
+</html>
