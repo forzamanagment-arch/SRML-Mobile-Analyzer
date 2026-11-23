@@ -11,7 +11,7 @@ from .v39_header import parse_v39_header
 def _read_name(strings: bytes, index: int, label: str) -> str:
     if index < 0 or index >= len(strings):
         raise FormatError(f"{label} string index {index} is outside the strings section.")
-    end = strings.find(b"\\x00", index)
+    end = strings.find(b"\x00", index)
     if end < 0:
         raise FormatError(f"{label} string at offset {index} has no NUL terminator.")
     try:
