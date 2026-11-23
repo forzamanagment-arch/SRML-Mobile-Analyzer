@@ -77,7 +77,6 @@ build = gradle.read_text(encoding="utf-8")
 # 1.17.0 is the preceding stable Core line and supports API 36.
 for old, new in [
     ('androidx.core:core:1.19.0', 'androidx.core:core:1.17.0'),
-    ('androidx.core:core-ktx:1.19.0', 'androidx.core:core-ktx:1.17.0'),
 ]:
     if build.count(old) != 1:
         raise SystemExit(f"Expected exactly one {old} dependency")
