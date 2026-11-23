@@ -481,3 +481,26 @@ The first fix should prevent the fatal null dereference and expose a useful log;
 - Unity 6 Android application entry documentation describes `UnityPlayerForGameActivity` and `UnityPlayerGameActivity`: https://docs.unity.com/en-us/engine/6000.7/manual/platform-specific/android/developing/unityasa-library
 
 Status: source-level root-cause candidate identified; no FusionCore binary has been modified, and no device-side fix has been tested.
+
+
+### Follow-up: exact null-dereference path confirmed in source
+
+A line-by-line recheck of tag 0.045 confirms the path more precisely:
+
+- `fusion_bootstrap_from_libmain()` at `fusion.cpp:161-164` obtains `javaConfig = get_fusion_config(env)`, immediately calls `fusion_parse_config(env, javaConfig)`, then deletes the local reference. There is no null check on `javaConfig`.
+- `fusion_parse_config()` first resolves the FusionConfig class. If that class cannot be found, it returns early. If the class is found, it immediately executes `GET_JBOOLEAN_FIELD(isIl2Cpp2Mono)`.
+- That macro calls `GetFieldID(configClass, ...)` and then `GetBooleanField(jFusionConfig, fieldId)` without checking whether `jFusionConfig` is null.
+
+Therefore, the reported CheckJNI error is directly explained if `get_fusion_config()` returns null while the FusionConfig class remains loadable. This confirms the null-config dereference as the immediate defect. It does not yet identify which condition made `get_fusion_config()` return null.
+
+The earlier Unity 6 bridge-class hypothesis remains plausible but unverified. Unity 6000.3 documentation confirms that the old concrete UnityPlayer Java API was split into `UnityPlayerForActivityOrService` and `UnityPlayerForGameActivity`, with both deriving from the UnityPlayer base class. The FusionCore helper stops at the first class it finds and expects a static `currentActivity` field on that class. We need inspect the target APK's actual DEX definitions and field ownership before selecting the exact fix.
+
+### Diagnostic artifact needed from target APK
+
+The smallest useful next artifact is the target game's DEX bytecode, not its large Unity asset bundles:
+- `classes.dex`
+- any additional `classes2.dex`, `classes3.dex`, etc. present in the same APK/split APKs.
+
+We need determine whether `UnityPlayer`, `UnityPlayerForActivityOrService`, and `UnityPlayerForGameActivity` are present, which one declares `currentActivity`, and which Activity class is the manifest launcher. Do not infer this from Unity version alone.
+
+No target APK DEX has been supplied or inspected yet. Do not claim the bridge-field mismatch is confirmed until that inspection is complete.
