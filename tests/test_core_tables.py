@@ -6,7 +6,7 @@ from srml_analyzer.v39_header import MAGIC, V39_SECTIONS, parse_v39_header, v39_
 
 
 def sample():
-    strings = b"Thing\\x00System\\x00value\\x00Run\\x00arg\\x00"
+    strings = b"Thing\x00System\x00value\x00Run\x00arg\x00"
     offsets = {"Thing": 0, "System": 6, "value": 13, "Run": 19, "arg": 23}
     fields = struct.pack("<IBI", offsets["value"], 1, 0x04000001)
     params = struct.pack("<IIB", offsets["arg"], 0x08000001, 1)
