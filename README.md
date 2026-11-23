@@ -18,7 +18,7 @@ Game binaries are not stored in this repository. Keep `global-metadata.dat` and 
 ## Requirements
 
 - Python 3.10+ for the CLI.
-- A modern browser for the offline mobile analyzer in `web/index.html`.
+- A modern browser for the offline mobile analyzer in `web/analyzer-offline.html`.
 
 ## Usage
 
