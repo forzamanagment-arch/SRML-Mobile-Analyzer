@@ -17,3 +17,8 @@ jobs:
         run: python -m unittest discover -s tests -v
       - name: Check CLI
         run: python -m srml_analyzer --help
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check offline browser analyzer
+        run: node --test web/analyzer.test.mjs
