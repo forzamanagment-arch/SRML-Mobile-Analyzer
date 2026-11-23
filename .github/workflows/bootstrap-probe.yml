@@ -1,4 +1,4 @@
-name: Build Android Bootstrap Probe
+name: Build FusionCore Bootstrap Probe
 
 on:
   workflow_dispatch:
@@ -14,19 +14,33 @@ jobs:
       - name: Checkout SRML Mobile
         uses: actions/checkout@v4
 
-      - name: Checkout NextBep reference assemblies
+      - name: Checkout exact FusionCore runtime source
         uses: actions/checkout@v4
         with:
-          repository: NextBep/BepInEx.Android.Launcher
-          ref: main
-          path: deps/NextBepLauncher
+          repository: All-Of-Us-Mods/FusionCore
+          ref: "0.045"
+          path: deps/FusionCore
 
-      - name: Set up .NET
+      - name: Extract embedded BepInEx Fusion runtime
+        run: |
+          mkdir -p deps/FusionCoreRuntime
+          unzip -q deps/FusionCore/fusionApp/src/main/assets/BepInEx-arm64.zip -d deps/FusionCoreRuntime
+          for file in \
+            BepInEx.Core.dll \
+            BepInEx.Unity.Common.dll \
+            BepInEx.Unity.IL2CPP.dll \
+            Il2CppInterop.Common.dll \
+            Il2CppInterop.Runtime.dll \
+            MonoMod.RuntimeDetour.dll; do
+            test -f "deps/FusionCoreRuntime/core/$file"
+          done
+
+      - name: Set up .NET 10
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: 10.0.x
 
-      - name: Build probe plugin
+      - name: Build probe against FusionCore's exact runtime assemblies
         run: dotnet build runtime/BootstrapProbe/BootstrapProbe.csproj --configuration Release --output artifacts/BootstrapProbe
 
       - name: Package probe plugin
@@ -34,11 +48,11 @@ jobs:
           mkdir -p artifacts/package/BepInEx/plugins
           cp artifacts/BootstrapProbe/BootstrapProbe.dll artifacts/package/BepInEx/plugins/
           cd artifacts/package
-          zip -r ../../SRMLMobile-BootstrapProbe.zip BepInEx
+          zip -r ../../SRMLMobile-BootstrapProbe-FusionCore.zip BepInEx
 
       - name: Upload probe artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SRMLMobile-BootstrapProbe
-          path: SRMLMobile-BootstrapProbe.zip
+          name: SRMLMobile-BootstrapProbe-FusionCore
+          path: SRMLMobile-BootstrapProbe-FusionCore.zip
           if-no-files-found: error
