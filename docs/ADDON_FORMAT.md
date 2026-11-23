@@ -136,3 +136,82 @@ The bundle directory alone does not identify slime prefabs or prove scene spawn 
 - The exact prefab, appearance, and scene spawn data are not yet mapped.
 - The manifest and slime JSON are proposals, not stable public contracts.
 - Package signing and a final permission model are not implemented.
+
+
+## Findings from desktop SRML source study (2026-11-24)
+
+Sources inspected:
+- Official `SlimeRancherModding/SRML` repository, `SampleMod/Main.cs` and `SampleMod/modinfo.json`.
+- `SRML/SR/SlimeRegistry.cs`.
+- `SRML/SR/Templates/Identifiables/SlimeTemplate.cs`.
+- `SRML/SR/RegionSetRegistry.cs`.
+- Official SRML Getting Started / Project Setup wiki.
+
+### What a real desktop mod looks like
+
+The official sample is a compiled C# class library plus `modinfo.json`. Its entry class derives from `ModEntryPoint` and uses lifecycle methods:
+- `PreLoad()`: early registration and Harmony patches; sample also subscribes to save-loaded callback and spawns an existing Mosaic Boom Largo.
+- `Load()`: registration requiring the game context.
+- `PostLoad()`: work that needs initialized game prefabs and other runtime resources.
+
+The sample does not create a new slime. It demonstrates the lifecycle and spawning an existing prefab.
+
+The wiki's project setup describes a .NET Framework class library and references to the desktop game's `Assembly-CSharp`, `SRML.dll`, Harmony, and UnityEngine assemblies. That is a desktop Mono mod build pipeline, not a binary format that can be loaded unchanged by the Android IL2CPP game.
+
+### How desktop SRML actually creates slimes
+
+The inspected `SlimeTemplate` is much more important than the minimal sample. It constructs a slime at runtime:
+- creates/builds a `SlimeDefinition`;
+- registers it through `SlimeRegistry.RegisterSlimeDefinition`;
+- constructs a `GameObject` prefab and attaches the required components, including `SlimeAppearanceApplicator`, `Identifiable`, `SlimeEat`, `SlimeVarietyModules`, movement, health, emotions, audio, face, and interaction components;
+- builds bone/appearance hierarchy and configures the appearance applicator;
+- can generate largo variants and register their prefabs.
+
+This proves that in desktop SRML, a custom slime is not just a texture and a JSON record. It is a coordinated runtime definition plus prefab/component graph and appearance resources.
+
+### Registration behavior
+
+`SlimeRegistry.RegisterSlimeDefinition`:
+- tracks which mod owns the definition;
+- selects the correct `SlimeDefinitions` instance based on SRML's loading step;
+- inserts the definition into the ID lookup and slime list;
+- updates largo lookup dictionaries where applicable;
+- refreshes diet EatMaps for the new definition and its base slimes when requested.
+
+`RegisterAppearance` registers dependent appearances and updates the chosen appearance through `SlimeAppearanceDirector`.
+
+`RegionSetRegistry` separately registers region trees and maps zones to region-set IDs. This is a useful architectural precedent for keeping slime registration and habitat/region registration as distinct services.
+
+### What transfers to SRML Mobile
+
+Transferable concepts (not desktop binaries):
+- a staged lifecycle with early registration, game-ready registration, and post-load asset work;
+- registries for slime definitions, appearances, prefabs, and habitat/region data;
+- explicit registration of the slime definition into lookup collections and diet-map refresh;
+- a prefab factory that assembles the required components;
+- package metadata separated from executable behavior;
+- stable mod IDs and dependency declarations.
+
+Not directly transferable:
+- desktop `.NET Framework` DLLs and their references;
+- desktop `Assembly-CSharp` types and Mono runtime assumptions;
+- desktop Harmony patches;
+- desktop `Identifiable.Id` enum extension mechanics;
+- the exact component construction code, until equivalent IL2CPP runtime APIs and object creation paths are proven on mobile.
+
+### Architecture decision updated
+
+Keep `.SRMLmobileAddon` as a ZIP-compatible package, but do not assume its contents map one-to-one to desktop SRML files.
+
+Recommended package model:
+1. `manifest.json`: identity, version, target game build, Runtime API compatibility, dependencies, capabilities.
+2. `Content/`: declarative slime/diet/Slimepedia/habitat definitions.
+3. `Assets/`: icons, textures, and Unity asset bundles.
+4. `Scripts/`: optional mobile-specific managed plugin assemblies only after IL2CPP loading and API compatibility are proven.
+5. Desktop SRML DLLs are not accepted as mobile plugins.
+
+The mobile Runtime should implement a staged API inspired by desktop SRML lifecycle, and a mobile-specific slime factory/registry. JSON definitions are an authoring format; the Runtime must translate them into actual IL2CPP objects, components, lookup registrations, and asset references. This translation is not implemented or proven yet.
+
+### Critical caveat
+
+Desktop SRML source is valuable evidence for game concepts and registration responsibilities, but it is not evidence that desktop mods can run on Android or that the mobile game's internal registration path is identical. The target mobile game's own metadata and serialized assets remain authoritative.
