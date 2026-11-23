@@ -4,7 +4,7 @@ Early research tool for inspecting Unity IL2CPP binaries used by Slime Rancher M
 
 ## Status
 
-**Early v0.2 research build.** The tool validates the v39 metadata header structure and section ranges, calculates variable-width index sizes, and inspects ELF64 containers. It does not yet decode IL2CPP table records or produce a complete dump. The v39 parser still needs validation against the target game's local metadata file.
+**Early v0.3 research build.** The tool validates the v39 metadata header, decodes the ordinary string pool and string literals, and now has bounded decoders for image and assembly records. It still does not produce a complete IL2CPP dump. All record decoders need validation against the target game's local metadata file.
 
 ## Target sample
 
@@ -27,9 +27,11 @@ python -m srml_analyzer inspect-elf libil2cpp.so
 python -m srml_analyzer inspect-pair global-metadata.dat libil2cpp.so
 python -m srml_analyzer dump-strings global-metadata.dat --limit 200 --pretty
 python -m srml_analyzer dump-literals global-metadata.dat --limit 200 --pretty
+python -m srml_analyzer dump-images global-metadata.dat --limit 200 --pretty
+python -m srml_analyzer dump-assemblies global-metadata.dat --limit 200 --pretty
 ```
 
-Add `--pretty` for formatted JSON. `dump-strings` decodes the ordinary v39 UTF-8 string blob. `dump-literals` decodes the separate v39 string-literal table. Both print up to 100 entries by default; use `--limit` to change the preview size.
+Add `--pretty` for formatted JSON. `dump-strings` decodes the ordinary v39 UTF-8 string blob, `dump-literals` decodes the separate string-literal table, and `dump-images` / `dump-assemblies` decode their corresponding v39 records and resolve names through the ordinary string pool. Each dump prints up to 100 entries by default; use `--limit` to change the preview size.
 
 For metadata v39, `inspect-metadata` reports the parsed header sections and calculated index widths. For other versions, it only checks the magic/version prefix and labels any offset/size scan as exploratory.
 
@@ -42,7 +44,7 @@ python -m unittest discover -s tests -v
 ## Roadmap
 
 1. Validate the v39 header against the target game's local sample.
-2. Decode images, assemblies, types, fields, methods, and parameters. Both v39 string sections now have bounded decoders.
+2. Validate image and assembly decoders against the target sample, then decode types, fields, methods, and parameters.
 3. Resolve method pointers using the matching ELF and registration structures.
 4. Export stable JSON and human-readable dumps.
 
