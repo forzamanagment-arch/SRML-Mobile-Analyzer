@@ -1,10 +1,10 @@
 # SRML Mobile Bootstrap Probe
 
-A harmless first-stage BepInEx plugin used to verify that the Android loader reaches managed plugin execution inside Slime Rancher Mobile.
+A harmless first-stage BepInEx Fusion plugin used to verify that FusionCore reaches managed plugin execution inside Slime Rancher Mobile.
 
 ## What it does
 
-When BepInEx loads the plugin, it writes a unique marker:
+When BepInEx Fusion loads the plugin, it writes a unique marker:
 
 `[SRMLMOBILE_BOOTSTRAP_PROBE] Load() reached`
 
@@ -12,14 +12,21 @@ It also reports basic runtime information. It does not access game objects, chan
 
 ## Build
 
-The probe is intentionally minimal and uses the same BepInEx plugin API shape as the public NextBep sample.
+The probe targets .NET 10 and compiles against the exact BepInEx Fusion assemblies embedded in the official FusionCore 0.045 APK's source tag:
 
-The GitHub Actions workflow `.github/workflows/bootstrap-probe.yml` checks out the public NextBep launcher repository for its reference assemblies, builds this project with .NET 8, and packages the resulting DLL under:
+- `BepInEx.Core.dll`
+- `BepInEx.Unity.Common.dll`
+- `BepInEx.Unity.IL2CPP.dll`
+- `Il2CppInterop.Common.dll`
+- `Il2CppInterop.Runtime.dll`
+- `MonoMod.RuntimeDetour.dll`
+
+The workflow checks out FusionCore tag `0.045`, extracts its embedded `BepInEx-arm64.zip`, builds the probe, and packages the DLL under:
 
 `BepInEx/plugins/BootstrapProbe.dll`
 
-The workflow artifact is named `SRMLMobile-BootstrapProbe`.
+The artifact is named `SRMLMobile-BootstrapProbe-FusionCore`.
 
 ## Test boundary
 
-A successful build proves only that the probe compiles against the referenced BepInEx API. It does not prove the target game can start NextBep, initialize CoreCLR, load BepInEx, or execute this plugin. Those require an on-device test through the NextBep launcher.
+A successful build proves only that the probe compiles against the assemblies bundled with FusionCore 0.045. It does not prove Slime Rancher Mobile can launch through FusionCore, initialize IL2CPP, or execute this plugin. Those remain separate on-device proof gates.
