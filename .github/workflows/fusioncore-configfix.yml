@@ -2,7 +2,12 @@ name: Build FusionCore config-forwarding test APK
 
 on:
   push:
-    branches: [ "fusioncore-config-forwarding" ]
+    branches: [ "main", "fusioncore-config-forwarding" ]
+    paths:
+      - ".github/workflows/fusioncore-configfix.yml"
+      - "patches/**"
+  pull_request:
+    branches: [ "main" ]
     paths:
       - ".github/workflows/fusioncore-configfix.yml"
       - "patches/**"
@@ -31,7 +36,7 @@ jobs:
           cp patches/apply_fusioncore_configfix.py fusioncore-src/
           cd fusioncore-src
           python3 apply_fusioncore_configfix.py
-          git diff --check || true
+          python3 -m py_compile apply_fusioncore_configfix.py
           grep -n "Forwarded FusionCore config" fusionApp/src/main/java/dev/allofus/fusioncore/hooks/GameRuntime.java
           grep -n 'applicationIdSuffix = ".configfix"' fusionApp/build.gradle.kts
 
@@ -50,7 +55,7 @@ jobs:
           sdkmanager "platforms;android-37" "build-tools;37.0.0" "cmake;3.22.1" "ndk;27.2.12479018"
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v5
 
       - name: Build patched debug APK
         working-directory: fusioncore-src
