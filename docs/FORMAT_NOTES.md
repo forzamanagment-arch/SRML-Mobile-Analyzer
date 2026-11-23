@@ -11,26 +11,36 @@ These observations identify the target family, but do not by themselves validate
 
 ## Unity 6000.3 metadata v38/v39 research
 
-The reviewed Unity 6000.3-era metadata definitions add explicit element counts alongside many section offset/size pairs. The reference parser uses these counts for record-array lengths instead of deriving every count from a fixed record size.
+The reviewed Unity 6000.3-era Il2CppDumper changes describe a v38+ global metadata header containing section offset/size/count triples. Version-gated legacy fields are absent in v39. The reference implementation also derives array lengths from explicit counts for fixed-record tables and uses variable-width serialized indices.
 
-It also uses variable-width serialized indices:
+Reference material:
+- [Il2CppDumper Unity 6 support PR #922](https://github.com/Perfare/Il2CppDumper/pull/922)
+- [PR file changes](https://github.com/Perfare/Il2CppDumper/pull/922/files)
 
+The project now contains `srml_analyzer/v39_header.py`, which:
+- Parses the v39 header field sequence (currently 380 bytes).
+- Exposes 31 named section descriptors with offset, byte size, count, and end.
+- Rejects truncated headers and section ranges outside the input file.
+- Computes the four variable index widths from header counts and record-size relationships.
+
+Index width rules implemented in `srml_analyzer/index_widths.py`:
 - Type-definition indices: width derived from type-definition count.
 - Generic-container indices: width derived from generic-container count.
 - Parameter-definition indices: variable-width in v39.
 - Type indices: inferred from interface-offset record size when available, otherwise from field-record size, otherwise defaulting to 4 bytes.
 - Widths are 1, 2, or 4 bytes. An all-ones value for the selected width is the null index sentinel (-1).
+- Count-derived widths: counts up to 255 use 1 byte, up to 65,535 use 2 bytes, and larger counts use 4 bytes.
 
-For count-derived widths: counts up to 255 use 1 byte, up to 65,535 use 2 bytes, and larger counts use 4 bytes.
-
-The project implements these calculations in `srml_analyzer/index_widths.py` with synthetic unit tests. This is a focused format-research component, not yet an end-to-end v39 parser.
+The v39 header parser is covered by synthetic tests. This is not yet proof that the schema matches the target game's actual file: the local `global-metadata.dat` has not yet been run through this parser in the project workflow.
 
 ## Important limitations
 
-The metadata inspector currently validates only the magic and version field. Its offset/size scanner is exploratory and may report false positives. It does not identify actual table types or parse the complete v39 header.
-
-The ELF inspector validates the basic ELF64 little-endian header and ordinary program/section table bounds. Extended section numbering is not implemented. It does not parse dynamic symbols, relocations, or IL2CPP registration structures.
+- The v39 header parser validates header fields and section bounds; it does not decode table records.
+- Image, assembly, type, field, method, parameter, and string records are not yet decoded.
+- The header schema is based on a reviewed reference implementation, not an independently published Unity specification.
+- The ELF inspector validates the basic ELF64 little-endian header and ordinary program/section table bounds. Extended section numbering is not implemented. It does not parse dynamic symbols, relocations, or IL2CPP registration structures.
+- No target-game binary is stored in this public repository.
 
 ## Next research target
 
-Validate the complete v39 header and record layouts against the target game's real `global-metadata.dat`. Then decode images, assemblies, types, fields, methods, and parameters using count-based array lengths and the correct per-kind index widths.
+Run the parser against the target game's local `global-metadata.dat` without committing the binary. Then implement and test v39 record decoders, starting with strings, images, assemblies, types, fields, methods, and parameters.
