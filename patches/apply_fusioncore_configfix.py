@@ -72,10 +72,21 @@ settings.write_text(settings_text.replace(foojay_block, ""), encoding="utf-8")
 gradle = Path("fusionApp/build.gradle.kts")
 build = gradle.read_text(encoding="utf-8")
 
+# Keep the upstream app on API 36 in this reproducible build environment.
+# AndroidX Core 1.19.0 requires API 37, which is not yet available from sdkmanager here.
+# 1.17.0 is the preceding stable Core line and supports API 36.
+for old, new in [
+    ('androidx.core:core:1.19.0', 'androidx.core:core:1.17.0'),
+    ('androidx.core:core-ktx:1.19.0', 'androidx.core:core-ktx:1.17.0'),
+]:
+    if build.count(old) != 1:
+        raise SystemExit(f"Expected exactly one {old} dependency")
+    build = build.replace(old, new)
+
 sdk_anchor = "    compileSdk = 37\n"
 if build.count(sdk_anchor) != 1:
     raise SystemExit(f"Expected exactly one compileSdk 37 setting, found {build.count(sdk_anchor)}")
-build = build.replace(sdk_anchor, "    compileSdk = 37\n")
+build = build.replace(sdk_anchor, "    compileSdk = 36\n")
 
 anchor = """    buildTypes {
         release {
