@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -9,11 +9,27 @@
 
   <ItemGroup>
     <Reference Include="BepInEx.Core">
-      <HintPath>../../deps/NextBepLauncher/TestPlugin/BepInEx.Core.dll</HintPath>
+      <HintPath>../../deps/FusionCoreRuntime/core/BepInEx.Core.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="BepInEx.Unity.Common">
+      <HintPath>../../deps/FusionCoreRuntime/core/BepInEx.Unity.Common.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="BepInEx.Unity.IL2CPP">
-      <HintPath>../../deps/NextBepLauncher/TestPlugin/BepInEx.Unity.IL2CPP.dll</HintPath>
+      <HintPath>../../deps/FusionCoreRuntime/core/BepInEx.Unity.IL2CPP.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Il2CppInterop.Common">
+      <HintPath>../../deps/FusionCoreRuntime/core/Il2CppInterop.Common.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Il2CppInterop.Runtime">
+      <HintPath>../../deps/FusionCoreRuntime/core/Il2CppInterop.Runtime.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="MonoMod.RuntimeDetour">
+      <HintPath>../../deps/FusionCoreRuntime/core/MonoMod.RuntimeDetour.dll</HintPath>
       <Private>false</Private>
     </Reference>
   </ItemGroup>
