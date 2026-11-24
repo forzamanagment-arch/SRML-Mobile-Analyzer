@@ -59,5 +59,6 @@ The Manager validates package metadata without executing any code. A package wit
 1. Compile this API assembly in CI.
 2. Keep the existing BepInEx BootstrapProbe as the independent runtime bootstrap test.
 3. Implement a BepInEx adapter that creates `IModContext` and invokes `ISrmlMobilePlugin`.
-4. Validate the adapter using a no-game-API test plugin that only logs lifecycle callbacks.
-5. Add game-facing interfaces only after the relevant IL2CPP type and registration paths have been verified on-device.
+4. Build a separate sample add-on DLL and verify that the adapter can discover its public entry point and invoke `OnLoad`.
+5. Verify the adapter and external sample DLL on-device using the `[SRMLMOBILE_RUNTIME_ADAPTER]` and `[SAMPLE_ADDON_LOADED]` log markers.
+6. Add a verified game-ready event, then game-facing interfaces only after the relevant IL2CPP type and registration paths have been checked on-device.
