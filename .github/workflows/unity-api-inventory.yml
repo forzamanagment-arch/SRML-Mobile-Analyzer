@@ -1,0 +1,46 @@
+name: Inspect FusionCore Unity API surface
+
+on:
+  push:
+    paths:
+      - ".github/workflows/unity-api-inventory.yml"
+  workflow_dispatch:
+
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout SRML Mobile
+        uses: actions/checkout@v4
+
+      - name: Checkout FusionCore 0.045
+        uses: actions/checkout@v4
+        with:
+          repository: All-Of-Us-Mods/FusionCore
+          ref: "0.045"
+          path: deps/FusionCore
+
+      - name: Extract runtime assemblies
+        run: |
+          mkdir -p deps/FusionCoreRuntime
+          unzip -q deps/FusionCore/fusionApp/src/main/assets/BepInEx-arm64.zip -d deps/FusionCoreRuntime
+          {
+            echo "FusionCore runtime DLL inventory"
+            echo "================================"
+            find deps/FusionCoreRuntime -type f -iname '*.dll' -printf '%P\n' | sort
+            echo
+            echo "Unity UI / image API candidates"
+            echo "==============================="
+            find deps/FusionCoreRuntime -type f -iname '*UnityEngine*' -printf '%P\n' | sort
+            echo
+            echo "Runtime directory structure"
+            echo "============================"
+            find deps/FusionCoreRuntime -maxdepth 2 -type d -printf '%P/\n' | sort
+          } | tee unity-api-inventory.txt
+
+      - name: Upload inventory
+        uses: actions/upload-artifact@v4
+        with:
+          name: FusionCore-Unity-API-Inventory
+          path: unity-api-inventory.txt
+          if-no-files-found: error
