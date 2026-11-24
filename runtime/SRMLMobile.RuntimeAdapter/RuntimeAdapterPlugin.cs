@@ -14,7 +14,7 @@ public sealed class RuntimeAdapterPlugin : BasePlugin
 {
     public const string PluginGuid = "com.srmlmobile.runtimeadapter";
     public const string PluginName = "SRML Mobile Runtime Adapter";
-    public const string PluginVersion = "0.1.2";
+    public const string PluginVersion = "0.1.3";
 
     public override void Load()
     {
@@ -42,6 +42,7 @@ public sealed class RuntimeAdapterPlugin : BasePlugin
         RunBuiltInContractProbe(context);
         LoadExternalSampleAddOn(context);
         InteropRuntimeInventory.Run(Log);
+        InteropStartupProbe.Run(Log);
         ProbeUnityInteropSurface();
 
         Log.LogInfo("[SRMLMOBILE_RUNTIME_ADAPTER] Adapter initialization finished");
