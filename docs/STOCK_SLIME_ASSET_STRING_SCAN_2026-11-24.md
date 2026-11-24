@@ -4,11 +4,11 @@ Target build: Slime Rancher Mobile 1.1.1103, Unity 6000.3.0f1, IL2CPP ARM64.
 
 ## Method
 
-The uploaded `data.unity3d` was unpacked as UnityFS v8. Its 1,058 storage blocks were reconstructed (1,051 LZ4/LZ4HC blocks and 7 uncompressed blocks), producing a 138,602,004-byte stream. The directory contains `globalgamemanagers`, `globalgamemanagers.assets`, `sharedassets0.assets`, their resource streams, Unity built-ins, and `level0`.
+The uploaded `data.unity3d` was unpacked as UnityFS v8. Its 1,058 storage blocks were reconstructed (1,051 compressed blocks and 7 uncompressed blocks), producing a 138,602,004-byte stream. The directory contains `globalgamemanagers`, `globalgamemanagers.assets`, `sharedassets0.assets`, their resource streams, Unity built-ins, and `level0`.
 
-This pass scans printable strings in the extracted serialized files. It does not yet decode the Unity SerializedFile object table or type trees.
+The current analysis includes a string scan and a focused read of the serialized bytes around the `MainSlimeDefinitions` name. The complete Unity SerializedFile object table and type trees are still not decoded.
 
-## Confirmed string-level evidence
+## Confirmed evidence
 
 ### `globalgamemanagers`
 
@@ -40,27 +40,40 @@ Contains appearance/material asset-name leads:
 - `slimePinkBase`
 - `slimePinkBoomBase`
 - `slimePinkTabbyBase`
-- additional Pink combinations such as `slimePinkCrystalBase`, `slimePinkDervish`, `slimePinkHunterBase`, `slimePinkPhosphorBase`, `slimePinkRadBase`, `slimePinkRockBase`, `slimePinkSaber`, `slimePinkSpikeball`, and `slimePinkTabbyBase`.
+- additional Pink combinations such as `slimePinkCrystalBase`, `slimePinkDervish`, `slimePinkHunterBase`, `slimePinkPhosphorBase`, `slimePinkRadBase`, `slimePinkRockBase`, `slimePinkSaber`, and `slimePinkSpikeball`.
 
-The `slimePinkBase` string occurs twice in this file near material-property data. Treat these as material/resource names, not as proof of a prefab or SlimeDefinition object.
+The `slimePinkBase` string occurs twice near material-property data. Treat these as material/resource names, not as proof of a prefab or SlimeDefinition object.
 
-The string `MainSlimeDefinitions` is also present in `sharedassets0.assets`. Its owning object and referenced collection have not yet been resolved.
+### `MainSlimeDefinitions` serialized payload
+
+A focused byte-level inspection at offset `0x1F7AB70` in `sharedassets0.assets` found:
+
+- A length-prefixed object name, `MainSlimeDefinitions` (20 bytes).
+- Immediately after the name, a little-endian 32-bit count of `113`.
+- Following the count, 113 repeated 12-byte reference-shaped records.
+- Each record has file ID `0`; the 64-bit path IDs run sequentially from `0xE99` (3737) through `0xF09` (3849).
+
+This is strong evidence that the named serialized payload contains a collection of 113 local object references. The shape is consistent with Unity PPtr records, but the owning object's exact class/type and the target objects' types/names are not yet established. In particular, do not yet assume every referenced object is a SlimeDefinition; the object table and type tree must confirm that.
+
+This is the first concrete serialized collection lead in the available bundle and a much better target than the earlier isolated string hit.
 
 ## What is not established yet
 
 This pass does **not** recover the Pink Slime's:
-- concrete `SlimeDefinition` serialized instance or field values;
-- `IdentifiableId` and collection membership;
+- concrete `SlimeDefinition` instance or field values;
+- `IdentifiableId` and confirmed membership in the 113-reference collection;
 - diet, food groups, or favorite food;
 - prefab/GameObject reference or prefab hierarchy;
 - appearance structure and icon reference;
 - Slimepedia entry ID/content;
 - spawn constraints or spawn-location data.
 
-Do not create a mod manifest from these strings alone.
+Do not create a mod manifest from the string scan or collection count alone.
 
 ## Next analysis target
 
-The next required input is the game's larger `datapack.unity3d` bundle. The current `data.unity3d` establishes that the game-side script types and Pink appearance resources are present, but it has not yielded the complete stock slime definition. After the datapack is available, decode its Unity SerializedFile object tables/type trees and follow object references for Pink Slime, then compare with a second stock slime to distinguish shared defaults from per-slime fields.
+The next required input is the game's larger `datapack.unity3d` bundle. The available `data.unity3d` has yielded a named collection with 113 local object references, but the target objects must be resolved through the serialized object table and type metadata. The datapack is not currently present in the accessible Library files for this session.
+
+After receiving it, inspect its UnityFS directory and SerializedFile object tables, resolve the stock slime definition references, and compare Pink Slime with a second stock slime to distinguish shared defaults from per-slime fields.
 
 Keep all game-facing runtime capabilities disabled until the serialized definition, native type mapping, and safe initialization lifecycle are verified.
