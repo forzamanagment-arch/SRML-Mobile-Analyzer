@@ -1,0 +1,37 @@
+name: SRML Mobile API
+
+on:
+  push:
+    paths:
+      - "runtime/SRMLMobile.API/**"
+      - ".github/workflows/mobile-api.yml"
+  pull_request:
+    paths:
+      - "runtime/SRMLMobile.API/**"
+      - ".github/workflows/mobile-api.yml"
+  workflow_dispatch:
+
+jobs:
+  build-api:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Build API
+        run: dotnet build runtime/SRMLMobile.API/SRMLMobile.API.csproj --configuration Release
+
+      - name: Pack API
+        run: dotnet pack runtime/SRMLMobile.API/SRMLMobile.API.csproj --configuration Release --no-build --output artifacts
+
+      - name: Upload API package
+        uses: actions/upload-artifact@v4
+        with:
+          name: SRMLMobile-API-0.1.0
+          path: artifacts/*.nupkg
+          if-no-files-found: error
