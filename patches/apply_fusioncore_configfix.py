@@ -93,7 +93,7 @@ anchor = """    buildTypes {
 replacement = """    buildTypes {
         // Keep the patched test build side-by-side with the official FusionCore APK.
         debug {
-            applicationIdSuffix = ".configfix"
+            applicationIdSuffix = ".diagnostics"
             versionNameSuffix = "-configfix"
         }
         release {
