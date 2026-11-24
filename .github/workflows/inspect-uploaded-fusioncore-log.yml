@@ -1,0 +1,61 @@
+name: Inspect uploaded FusionCore native log
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/inspect-uploaded-fusioncore-log.yml"
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download uploaded release log
+        run: |
+          curl -fL --retry 3 \
+            "https://github.com/forzamanagment-arch/SRML-Mobile-Binary-Research/releases/download/Lib001/fusioncore-native.log" \
+            -o fusioncore-native.log
+          wc -c fusioncore-native.log
+
+      - name: Extract diagnostic summary
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p = Path("fusioncore-native.log")
+          lines = p.read_text(errors="replace").splitlines()
+          patterns = [
+              r"0 plugins to load",
+              r"plugins to load",
+              r"SRMLMOBILE_RUNTIME_ADAPTER",
+              r"LOGOSWAP_PROBE",
+              r"Chainloader",
+              r"Failed to resolve il2cpp export",
+              r"Target hook method",
+              r"Unable to find method",
+              r"Unable to find type",
+              r"Exception",
+              r"FATAL",
+              r"crash",
+              r"SIG[A-Z]+",
+          ]
+          out = ["FusionCore native log diagnostic", f"Total lines: {len(lines)}", ""]
+          for pattern in patterns:
+              hits = [(i, line) for i, line in enumerate(lines) if re.search(pattern, line, re.I)]
+              out.append(f"## {pattern}: {len(hits)}")
+              for i, line in hits[:40]:
+                  out.append(f"{i+1}: {line[:500]}")
+              out.append("")
+          out.append("## Final 120 lines")
+          out.extend(f"{i+1}: {line[:500]}" for i, line in list(enumerate(lines))[-120:])
+          Path("fusioncore-log-summary.txt").write_text("\n".join(out))
+          PY
+
+      - name: Upload full log and summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: FusionCore-Native-Log-Inspection
+          path: |
+            fusioncore-native.log
+            fusioncore-log-summary.txt
+          if-no-files-found: error
