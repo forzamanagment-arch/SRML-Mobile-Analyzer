@@ -48,6 +48,7 @@ For metadata v39, `inspect-metadata` reports the parsed header sections and calc
 ## Research documents
 
 - [Custom slime creation research](docs/SLIME_CREATION_RESEARCH.md)
+- [Target slime registration metadata v39 findings](docs/TARGET_SLIME_REGISTRATION_METADATA_V39_2026-11-24.md)
 - [Addon package format](docs/ADDON_FORMAT.md)
 - [Android loader and Manager bootstrap research](docs/LOADER_BOOTSTRAP_RESEARCH.md)
 
