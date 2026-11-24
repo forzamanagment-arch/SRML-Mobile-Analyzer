@@ -1,4 +1,7 @@
 using System;
+using System.IO;
+using System.Linq;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using BepInEx;
 using BepInEx.Unity.IL2CPP;
@@ -21,37 +24,92 @@ public sealed class RuntimeAdapterPlugin : BasePlugin
         Log.LogInfo($"Process architecture: {RuntimeInformation.ProcessArchitecture}");
         Log.LogInfo($"Runtime version: {Environment.Version}");
 
+        var context = new ModContext(
+            new ModIdentity(
+                "srmlmobile.runtime.external-test",
+                "SRML Mobile External Add-on Test",
+                "0.1.0",
+                "SRML Mobile"),
+            new BepInExLogger(Log),
+            new RuntimeInfo("0.1.0", PluginVersion, "IL2CPP via BepInEx Fusion / Il2CppInterop"),
+            new GameInfo(
+                "com.playdigious.slimerancher",
+                "1.1.1103",
+                "6000.3.0f1",
+                RuntimeInformation.ProcessArchitecture.ToString()),
+            new NoGameplayFeatures());
+
+        RunBuiltInContractProbe(context);
+        LoadExternalSampleAddOn(context);
+
+        Log.LogInfo("[SRMLMOBILE_RUNTIME_ADAPTER] Adapter initialization finished");
+        Log.LogInfo("Game-facing capabilities remain disabled in this build.");
+        Log.LogInfo("================================================");
+    }
+
+    private void RunBuiltInContractProbe(IModContext context)
+    {
         try
         {
-            var context = new ModContext(
-                new ModIdentity(
-                    "srmlmobile.runtime.smoke-test",
-                    "SRML Mobile Runtime Smoke Test",
-                    "0.1.0",
-                    "SRML Mobile"),
-                new BepInExLogger(Log),
-                new RuntimeInfo("0.1.0", PluginVersion, "IL2CPP via BepInEx Fusion / Il2CppInterop"),
-                new GameInfo(
-                    "com.playdigious.slimerancher",
-                    "1.1.1103",
-                    "6000.3.0f1",
-                    RuntimeInformation.ProcessArchitecture.ToString()),
-                new NoGameplayFeatures());
-
-            // This built-in test plugin exercises the public API contract without
-            // loading external mod code or touching game objects.
-            ISrmlMobilePlugin smokeTest = new RuntimeApiSmokeTest();
-            smokeTest.OnLoad(context);
-
-            Log.LogInfo("[SRMLMOBILE_RUNTIME_ADAPTER] API contract invocation succeeded");
-            Log.LogInfo("Game-facing capabilities remain disabled in this build.");
+            ISrmlMobilePlugin probe = new RuntimeApiSmokeTest();
+            probe.OnLoad(context);
+            Log.LogInfo("[SRMLMOBILE_RUNTIME_ADAPTER] Built-in API contract probe succeeded");
         }
         catch (Exception exception)
         {
-            Log.LogError("[SRMLMOBILE_RUNTIME_ADAPTER] API contract invocation failed: " + exception);
+            Log.LogError("[SRMLMOBILE_RUNTIME_ADAPTER] Built-in API contract probe failed: " + exception);
         }
+    }
 
-        Log.LogInfo("================================================");
+    private void LoadExternalSampleAddOn(IModContext context)
+    {
+        string modsDirectory = Path.Combine(Paths.PluginPath, "SRMLMobile", "Mods");
+        string assemblyPath = Path.Combine(modsDirectory, "SRMLMobile.SamplePlugin.dll");
+
+        try
+        {
+            if (!File.Exists(assemblyPath))
+            {
+                Log.LogWarning("[SRMLMOBILE_RUNTIME_ADAPTER] External sample add-on not found: " + assemblyPath);
+                return;
+            }
+
+            Assembly assembly = Assembly.LoadFrom(assemblyPath);
+            Type[] pluginTypes = assembly.GetTypes()
+                .Where(type =>
+                    !type.IsAbstract &&
+                    !type.IsInterface &&
+                    typeof(ISrmlMobilePlugin).IsAssignableFrom(type) &&
+                    type.GetConstructor(Type.EmptyTypes) is not null)
+                .ToArray();
+
+            if (pluginTypes.Length == 0)
+            {
+                Log.LogWarning("[SRMLMOBILE_RUNTIME_ADAPTER] No public parameterless ISrmlMobilePlugin entry point found.");
+                return;
+            }
+
+            foreach (Type pluginType in pluginTypes)
+            {
+                try
+                {
+                    if (Activator.CreateInstance(pluginType) is not ISrmlMobilePlugin plugin)
+                        continue;
+
+                    Log.LogInfo("[SRMLMOBILE_RUNTIME_ADAPTER] Invoking external add-on: " + pluginType.FullName);
+                    plugin.OnLoad(context);
+                    Log.LogInfo("[SRMLMOBILE_RUNTIME_ADAPTER] External add-on OnLoad completed: " + pluginType.FullName);
+                }
+                catch (Exception exception)
+                {
+                    Log.LogError("[SRMLMOBILE_RUNTIME_ADAPTER] External add-on entry point failed: " + pluginType.FullName + Environment.NewLine + exception);
+                }
+            }
+        }
+        catch (Exception exception)
+        {
+            Log.LogError("[SRMLMOBILE_RUNTIME_ADAPTER] External sample add-on load failed: " + exception);
+        }
     }
 }
 
@@ -59,8 +117,7 @@ internal sealed class RuntimeApiSmokeTest : ISrmlMobilePlugin
 {
     public void OnLoad(IModContext context)
     {
-        context.Logger.Info("ISrmlMobilePlugin.OnLoad invoked by the BepInEx adapter.");
-        context.Logger.Info($"Mod identity: {context.Mod.Id} {context.Mod.Version}");
+        context.Logger.Info("Built-in ISrmlMobilePlugin.OnLoad invoked.");
         context.Logger.Info($"Game: {context.Game.PackageName} {context.Game.GameVersion}");
         context.Logger.Info($"Unity: {context.Game.UnityVersion}");
         context.Logger.Info($"Runtime: {context.Runtime.RuntimeKind} / API {context.Runtime.ApiVersion}");
@@ -73,15 +130,8 @@ internal sealed class RuntimeApiSmokeTest : ISrmlMobilePlugin
         }
     }
 
-    public void OnGameReady()
-    {
-        // Intentionally not invoked until a reliable game-ready signal is verified.
-    }
-
-    public void OnUnload()
-    {
-        // Unload is not supported by this first adapter.
-    }
+    public void OnGameReady() { }
+    public void OnUnload() { }
 }
 
 internal sealed class ModContext : IModContext
