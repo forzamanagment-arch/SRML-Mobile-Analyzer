@@ -4,7 +4,7 @@ Early research tool for inspecting Unity IL2CPP binaries used by Slime Rancher M
 
 ## Status
 
-**Early v0.5 research build.** The Python analyzer validates the v39 metadata header and decodes strings, literals, images, assemblies, core class/member records, properties, events, generic metadata, and selected index arrays. `inspect-model` builds per-class summaries and checks cross-table ranges. A mobile-friendly browser analyzer is included under `web/`. Use the single-file `web/analyzer-offline.html` on Android: download it from the repository and open it in a browser. It reads the selected metadata file locally and exports JSON. The page contains no external scripts or upload requests. Synthetic fixtures and browser parser tests run in CI. The actual game sample has not yet been validated.
+**Early v0.5 research build.** The Python analyzer validates the v39 metadata header and decodes strings, literals, images, assemblies, core class/member records, properties, events, generic metadata, and selected index arrays. `inspect-model` builds per-class summaries and checks cross-table ranges. A mobile-friendly browser analyzer is included under `web/`. Use the single-file `web/analyzer-offline.html` on Android: download it from the repository and open it in a browser. It reads the selected metadata file locally and exports JSON. The page contains no external scripts or upload requests. Synthetic fixtures and browser parser tests run in CI. The target game's original metadata sample has now been independently checked against the v39 record sizes; see the target slime registration report for exact findings. The analyzer's automated CLI workflow still needs a target-sample regression test.
 
 ## Target sample
 
@@ -48,6 +48,7 @@ For metadata v39, `inspect-metadata` reports the parsed header sections and calc
 ## Research documents
 
 - [Custom slime creation research](docs/SLIME_CREATION_RESEARCH.md)
+- [Target slime registration metadata v39 findings](docs/TARGET_SLIME_REGISTRATION_METADATA_V39_2026-11-24.md)
 - [Addon package format](docs/ADDON_FORMAT.md)
 - [Mobile API contract 0.1](docs/MOBILE_API_CONTRACT_V0.1.md)
 - [Runtime Adapter 0.1](runtime/SRMLMobile.RuntimeAdapter/README.md)
@@ -63,11 +64,10 @@ python -m unittest discover -s tests -v
 
 ## Roadmap
 
-1. Validate the v39 header against the target game's local sample.
-2. Run `inspect-model` on the target game's local `global-metadata.dat` and fix any layout mismatches.
-3. Use the target metadata file with the browser or CLI analyzer and fix any real-sample mismatches.
-4. Resolve `TypeIndex` references and method pointers using the matching `libil2cpp.so` metadata/code registration structures.
-5. Export stable JSON and human-readable reports, then begin game-class analysis.
-6. Compile and integrate the contract-only SRML Mobile API; keep gameplay features disabled until validated on-device.
+1. Independently validate the v39 header and fixed-record sizes against the target game's original metadata sample. (Completed; see report.)
+2. Add the target metadata sample as a private/local regression fixture for `inspect-model`; do not commit the game binary.
+3. Resolve `TypeIndex` references and method pointers using the matching `libil2cpp.so` metadata/code registration structures.
+4. Inspect UnityFS bundles to map a stock slime's prefab, appearance, icon, diet, and Slimepedia assets.
+5. Verify registry initialization timing and design a reversible in-memory clone test; keep gameplay capabilities disabled until tested on-device.
 
 No game binaries should be committed to this public repository.
