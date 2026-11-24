@@ -81,7 +81,7 @@ jobs:
         run: |
           APK="$(find fusionApp/build/outputs/apk/debug -name '*.apk' -print -quit)"
           test -n "$APK"
-          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$APK" | grep "package: name='dev.allofus.fusioncore.configfix'"
+          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$APK" | grep "package: name='dev.allofus.fusioncore.diagnostics'"
           "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify "$APK"
 
       - name: Upload diagnostic test APK
