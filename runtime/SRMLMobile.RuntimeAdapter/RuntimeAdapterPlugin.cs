@@ -14,7 +14,7 @@ public sealed class RuntimeAdapterPlugin : BasePlugin
 {
     public const string PluginGuid = "com.srmlmobile.runtimeadapter";
     public const string PluginName = "SRML Mobile Runtime Adapter";
-    public const string PluginVersion = "0.1.0";
+    public const string PluginVersion = "0.1.1";
 
     public override void Load()
     {
@@ -41,6 +41,7 @@ public sealed class RuntimeAdapterPlugin : BasePlugin
 
         RunBuiltInContractProbe(context);
         LoadExternalSampleAddOn(context);
+        ProbeIl2CppInteropArchitectureSupport();
         ProbeUnityInteropSurface();
 
         Log.LogInfo("[SRMLMOBILE_RUNTIME_ADAPTER] Adapter initialization finished");
@@ -48,6 +49,76 @@ public sealed class RuntimeAdapterPlugin : BasePlugin
         Log.LogInfo("================================================");
     }
 
+
+
+    private void ProbeIl2CppInteropArchitectureSupport()
+    {
+        try
+        {
+            Assembly[] loaded = AppDomain.CurrentDomain.GetAssemblies();
+            Assembly? runtimeAssembly = loaded.FirstOrDefault(a =>
+                string.Equals(a.GetName().Name, "Il2CppInterop.Runtime", StringComparison.Ordinal));
+            Assembly? commonAssembly = loaded.FirstOrDefault(a =>
+                string.Equals(a.GetName().Name, "Il2CppInterop.Common", StringComparison.Ordinal));
+
+            Log.LogInfo("[IL2CPP_ARCH_PROBE] Process architecture: " + RuntimeInformation.ProcessArchitecture);
+            Log.LogInfo("[IL2CPP_ARCH_PROBE] Runtime assembly: " + (runtimeAssembly?.FullName ?? "NOT LOADED"));
+            Log.LogInfo("[IL2CPP_ARCH_PROBE] Common assembly: " + (commonAssembly?.FullName ?? "NOT LOADED"));
+
+            if (runtimeAssembly is not null)
+            {
+                Log.LogInfo("[IL2CPP_ARCH_PROBE] Runtime assembly location: " + runtimeAssembly.Location);
+                Log.LogInfo("[IL2CPP_ARCH_PROBE] Unity 6 generic hook type: " +
+                    (runtimeAssembly.GetType(
+                        "Il2CppInterop.Runtime.Injection.Hooks.GenericMethod_GetMethod_Unity6_Hook",
+                        throwOnError: false) is null ? "MISSING" : "PRESENT"));
+
+                Type? injectorHelpers = runtimeAssembly.GetType(
+                    "Il2CppInterop.Runtime.Injection.InjectorHelpers",
+                    throwOnError: false);
+                Log.LogInfo("[IL2CPP_ARCH_PROBE] InjectorHelpers type: " +
+                    (injectorHelpers is null ? "MISSING" : "PRESENT"));
+
+                bool unity6Field = injectorHelpers?.GetField(
+                    "GenericMethodGetMethodHook_Unity6",
+                    BindingFlags.NonPublic | BindingFlags.Static) is not null;
+                Log.LogInfo("[IL2CPP_ARCH_PROBE] Unity 6 hook registration field: " +
+                    (unity6Field ? "PRESENT" : "MISSING"));
+            }
+
+            Type? xrefScanner = commonAssembly?.GetType(
+                "Il2CppInterop.Common.XrefScans.XrefScanner",
+                throwOnError: false);
+            MethodInfo? architectureGuard = xrefScanner?.GetMethod(
+                "EnsureNativeCodeArchitectureSupported",
+                BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static);
+
+            Log.LogInfo("[IL2CPP_ARCH_PROBE] XrefScanner type: " +
+                (xrefScanner is null ? "MISSING" : "PRESENT"));
+            Log.LogInfo("[IL2CPP_ARCH_PROBE] ARM64 xref architecture guard: " +
+                (architectureGuard is null ? "MISSING" : "PRESENT"));
+
+            Type? lowLevelScanner = commonAssembly?.GetType(
+                "Il2CppInterop.Common.XrefScans.XrefScannerLowLevel",
+                throwOnError: false);
+            Log.LogInfo("[IL2CPP_ARCH_PROBE] Low-level xref scanner type: " +
+                (lowLevelScanner is null ? "MISSING" : "PRESENT"));
+
+            if (RuntimeInformation.ProcessArchitecture == Architecture.Arm64 &&
+                architectureGuard is null)
+            {
+                Log.LogWarning("[IL2CPP_ARCH_PROBE] ARM64_XREF_GUARD_MISSING: this runtime does not expose the architecture guard added in Il2CppInterop PR #288.");
+            }
+            else if (RuntimeInformation.ProcessArchitecture == Architecture.Arm64)
+            {
+                Log.LogInfo("[IL2CPP_ARCH_PROBE] ARM64_XREF_GUARD_PRESENT: architecture guard is present; this does not by itself prove every scanner call is safe.");
+            }
+        }
+        catch (Exception exception)
+        {
+            Log.LogError("[IL2CPP_ARCH_PROBE] Inspection failed: " + exception);
+        }
+    }
 
     private void ProbeUnityInteropSurface()
     {
