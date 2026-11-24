@@ -153,4 +153,45 @@ void log(LogLevel level, const char *tag, const char *message)
 """
 )
 
-print("Applied FusionCore native file logging and IL2CPP phase diagnostics.")
+# Instrument the ARM64 export-caller-check scan and Dobby's init hook install.
+replace_once(
+    "fusionApp/src/main/jni/fusion/src/hooking/il2cpp.cpp",
+    """    if (mapped_init_name)
+    {
+        disable_export_caller_check(p_il2cpp_init);
+    }
+""",
+    """    if (mapped_init_name)
+    {
+        log_format(LogLevel::INFO, TAG, "DIAG: mapped il2cpp_init export is {}", init_name);
+        log(LogLevel::INFO, TAG, "DIAG: entering ARM64 export-caller-check scan");
+        disable_export_caller_check(p_il2cpp_init);
+        log(LogLevel::INFO, TAG, "DIAG: returned from ARM64 export-caller-check scan");
+    }
+"""
+)
+
+replace_once(
+    "fusionApp/src/main/jni/fusion/src/hooking/il2cpp.cpp",
+    """    dobby_disable_near_branch_trampoline();
+    int result = DobbyHook(
+            p_il2cpp_init,
+            (dobby_dummy_func_t)init_hook,
+            (dobby_dummy_func_t *)&fun_il2cpp_init);
+
+    if (result != 0)
+""",
+    """    log_format(LogLevel::INFO, TAG, "DIAG: about to install Dobby hook on il2cpp_init at {}", fmt::ptr(p_il2cpp_init));
+    dobby_disable_near_branch_trampoline();
+    log(LogLevel::INFO, TAG, "DIAG: Dobby near-branch trampoline disabled");
+    int result = DobbyHook(
+            p_il2cpp_init,
+            (dobby_dummy_func_t)init_hook,
+            (dobby_dummy_func_t *)&fun_il2cpp_init);
+    log_format(LogLevel::INFO, TAG, "DIAG: DobbyHook(il2cpp_init) returned {}", result);
+
+    if (result != 0)
+"""
+)
+
+print("Applied FusionCore native file logging and detailed IL2CPP hook diagnostics.")
