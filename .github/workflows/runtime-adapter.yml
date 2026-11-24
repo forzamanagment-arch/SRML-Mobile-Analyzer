@@ -60,11 +60,11 @@ jobs:
           cp artifacts/plugins/SRMLMobile.API.dll artifacts/package/BepInEx/plugins/
           cp artifacts/sample/SRMLMobile.SamplePlugin.dll artifacts/package/BepInEx/plugins/SRMLMobile/Mods/
           cd artifacts/package
-          zip -r ../../SRMLMobile-RuntimeAdapter-0.1.0.zip BepInEx
+          zip -r ../../SRMLMobile-RuntimeAdapter-0.1.1.zip BepInEx
 
       - name: Upload adapter artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SRMLMobile-RuntimeAdapter-0.1.0
-          path: SRMLMobile-RuntimeAdapter-0.1.0.zip
+          name: SRMLMobile-RuntimeAdapter-0.1.1
+          path: SRMLMobile-RuntimeAdapter-0.1.1.zip
           if-no-files-found: error
