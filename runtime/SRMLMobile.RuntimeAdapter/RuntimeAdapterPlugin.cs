@@ -41,10 +41,113 @@ public sealed class RuntimeAdapterPlugin : BasePlugin
 
         RunBuiltInContractProbe(context);
         LoadExternalSampleAddOn(context);
+        ProbeUnityInteropSurface();
 
         Log.LogInfo("[SRMLMOBILE_RUNTIME_ADAPTER] Adapter initialization finished");
         Log.LogInfo("Game-facing capabilities remain disabled in this build.");
         Log.LogInfo("================================================");
+    }
+
+
+    private void ProbeUnityInteropSurface()
+    {
+        try
+        {
+            string? bepinexDirectory = Directory.GetParent(Paths.PluginPath)?.FullName;
+            string interopDirectory = Path.Combine(bepinexDirectory ?? string.Empty, "interop");
+
+            Log.LogInfo("[LOGOSWAP_PROBE] BepInEx interop directory: " + interopDirectory);
+            if (!Directory.Exists(interopDirectory))
+            {
+                Log.LogWarning("[LOGOSWAP_PROBE] Interop directory does not exist yet.");
+                return;
+            }
+
+            string[] unityAssemblies = Directory.GetFiles(interopDirectory, "UnityEngine*.dll");
+            Log.LogInfo("[LOGOSWAP_PROBE] UnityEngine interop DLL count: " + unityAssemblies.Length);
+            foreach (string file in unityAssemblies.OrderBy(Path.GetFileName))
+                Log.LogInfo("[LOGOSWAP_PROBE] Assembly file: " + Path.GetFileName(file));
+
+            string[] loadCandidates =
+            {
+                "UnityEngine.CoreModule.dll",
+                "UnityEngine.UIModule.dll",
+                "UnityEngine.UI.dll",
+                "UnityEngine.ImageConversionModule.dll"
+            };
+
+            foreach (string candidate in loadCandidates)
+            {
+                string path = Path.Combine(interopDirectory, candidate);
+                if (!File.Exists(path))
+                    continue;
+
+                try
+                {
+                    Assembly.LoadFrom(path);
+                    Log.LogInfo("[LOGOSWAP_PROBE] Loaded interop assembly: " + candidate);
+                }
+                catch (Exception exception)
+                {
+                    Log.LogWarning("[LOGOSWAP_PROBE] Could not load " + candidate + ": " + exception.GetType().Name + ": " + exception.Message);
+                }
+            }
+
+            string[] targetTypes =
+            {
+                "UnityEngine.GameObject",
+                "UnityEngine.Texture2D",
+                "UnityEngine.Rect",
+                "UnityEngine.Vector2",
+                "UnityEngine.Sprite",
+                "UnityEngine.ImageConversion",
+                "UnityEngine.UI.Image"
+            };
+
+            Assembly[] loadedAssemblies = AppDomain.CurrentDomain.GetAssemblies();
+            foreach (string typeName in targetTypes)
+            {
+                Type? type = loadedAssemblies
+                    .Select(assembly => assembly.GetType(typeName, throwOnError: false))
+                    .FirstOrDefault(found => found is not null);
+
+                Log.LogInfo(type is null
+                    ? "[LOGOSWAP_PROBE] TYPE_MISSING: " + typeName
+                    : "[LOGOSWAP_PROBE] TYPE_FOUND: " + typeName + " in " + type.Assembly.GetName().Name);
+
+                if (type is null)
+                    continue;
+
+                if (typeName == "UnityEngine.UI.Image")
+                {
+                    foreach (MethodInfo method in type.GetMethods(BindingFlags.Public | BindingFlags.Instance)
+                                 .Where(method => method.Name is "get_sprite" or "set_sprite"))
+                        Log.LogInfo("[LOGOSWAP_PROBE] Image API: " + method);
+                }
+                else if (typeName == "UnityEngine.GameObject")
+                {
+                    foreach (MethodInfo method in type.GetMethods(BindingFlags.Public | BindingFlags.Static)
+                                 .Where(method => method.Name == "Find"))
+                        Log.LogInfo("[LOGOSWAP_PROBE] GameObject API: " + method);
+                }
+                else if (typeName == "UnityEngine.Sprite")
+                {
+                    foreach (MethodInfo method in type.GetMethods(BindingFlags.Public | BindingFlags.Static)
+                                 .Where(method => method.Name == "Create"))
+                        Log.LogInfo("[LOGOSWAP_PROBE] Sprite API: " + method);
+                }
+                else if (typeName == "UnityEngine.ImageConversion")
+                {
+                    foreach (MethodInfo method in type.GetMethods(BindingFlags.Public | BindingFlags.Static)
+                                 .Where(method => method.Name == "LoadImage"))
+                        Log.LogInfo("[LOGOSWAP_PROBE] ImageConversion API: " + method);
+                }
+            }
+        }
+        catch (Exception exception)
+        {
+            Log.LogError("[LOGOSWAP_PROBE] Interop inspection failed: " + exception);
+        }
     }
 
     private void RunBuiltInContractProbe(IModContext context)
