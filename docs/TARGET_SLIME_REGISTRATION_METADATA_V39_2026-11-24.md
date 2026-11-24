@@ -96,10 +96,29 @@ No save modification or live gameplay mutation is part of this research pass.
 
 ## Asset-bundle observation
 
-The available `data.unity3d` file is a UnityFS bundle. Its header reports bundle format version 8 and engine version `6000.3.0f1`, matching the target game's Unity version. This pass only verified the bundle header; it did not enumerate or extract serialized assets. The larger `datapack.unity3d` and resource files still need inspection.
+The available `data.unity3d` file was parsed as a UnityFS bundle and its block stream was reconstructed successfully:
+
+- Bundle format version: 8.
+- Engine version: `6000.3.0f1`.
+- Block count: 1,058 (1,051 LZ4-compressed blocks and 7 uncompressed blocks).
+- Reconstructed uncompressed block stream: 138,602,004 bytes.
+
+The bundle contains these serialized files/resources:
+
+| Internal node | Size (bytes) |
+|---|---:|
+| `globalgamemanagers` | 734,804 |
+| `Resources/unity_builtin_extra` | 621,812 |
+| `globalgamemanagers.assets` | 473,232 |
+| `sharedassets0.assets` | 38,634,300 |
+| `globalgamemanagers.assets.resS` | 2,796,240 |
+| `sharedassets0.assets.resS` | 95,334,304 |
+| `level0` | 7,312 |
+
+This confirms the bundle can be decompressed and gives us the first concrete asset-file targets. The Unity serialized object/type tables have not yet been decoded, so no slime prefab, texture, material, or localization object has been identified. The larger `datapack.unity3d` and resource files still need inspection.
 
 ## Blocking item for the next native-mapping pass
 
 The matching `libil2cpp.so` is required to reconstruct the native metadata registration tables, resolve TypeIndex values, and map method tokens to native method pointers/RVAs. The native library must match this exact game build. Do not infer native addresses from metadata tokens.
 
-After that, asset-bundle inspection is needed to map a stock slime's actual prefab, icon, appearance, materials, diet data, and Slimepedia records. The game-facing capabilities in Runtime Adapter 0.1.0 must remain disabled until both the native mapping and a safe in-game lifecycle point are verified.
+For asset analysis, the next target is the extracted `sharedassets0.assets` and `globalgamemanagers.assets` serialized files, followed by the larger `datapack.unity3d` bundle. We need to identify a stock slime's prefab, icon, appearance, materials, diet data, and Slimepedia records before attempting a clone. The game-facing capabilities in Runtime Adapter 0.1.0 must remain disabled until both the native mapping and a safe in-game lifecycle point are verified.
