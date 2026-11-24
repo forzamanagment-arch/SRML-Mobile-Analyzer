@@ -11,7 +11,7 @@ internal static class InteropStartupProbe
     public static IntPtr ObjectGetVirtualMethodExport { get; private set; }
     public static void Run(ManualLogSource log)
     {
-        log.LogInfo("[INTEROP_STARTUP_PROBE] ===== BEGIN SAFE STARTUP PROBE 0.1.3 =====");
+        log.LogInfo("[INTEROP_STARTUP_PROBE] ===== BEGIN SAFE STARTUP PROBE 0.1.5 =====");
         try
         {
             Version unityVersion = Il2CppInteropRuntime.Instance.UnityVersion;
@@ -32,7 +32,7 @@ internal static class InteropStartupProbe
             log.LogError("[INTEROP_STARTUP_PROBE] Probe failed: " + exception);
         }
         log.LogInfo("[INTEROP_STARTUP_PROBE] NOTE: export resolution only; no Xref scan, native memory read, pointer traversal, or hook installation performed.");
-        log.LogInfo("[INTEROP_STARTUP_PROBE] ===== END SAFE STARTUP PROBE 0.1.3 =====");
+        log.LogInfo("[INTEROP_STARTUP_PROBE] ===== END SAFE STARTUP PROBE 0.1.5 =====");
     }
 
     private static void ProbeExports(ManualLogSource log)
