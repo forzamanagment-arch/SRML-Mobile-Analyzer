@@ -13,28 +13,21 @@ namespace SRMLMobile.RuntimeAdapter;
 /// </summary>
 internal static class GenericMethodXrefProbe
 {
-    public static void Run(ManualLogSource log)
+    public static void Run(ManualLogSource log, IntPtr getVirtualMethodExport)
     {
         log.LogInfo("[GENERICMETHOD_XREF_TRACE] ===== BEGIN READ-ONLY TRACE 0.1.4 =====");
-        IntPtr handle = IntPtr.Zero;
         try
         {
-            if (!NativeLibrary.TryLoad("libil2cpp.so", typeof(GenericMethodXrefProbe).Assembly, null, out handle))
+            if (getVirtualMethodExport == IntPtr.Zero)
             {
-                log.LogWarning("[GENERICMETHOD_XREF_TRACE] Could not load libil2cpp.so.");
-                return;
-            }
-
-            if (!NativeLibrary.TryGetExport(handle, "il2cpp_object_get_virtual_method", out IntPtr export))
-            {
-                log.LogWarning("[GENERICMETHOD_XREF_TRACE] EXPORT_MISSING: il2cpp_object_get_virtual_method");
+                log.LogWarning("[GENERICMETHOD_XREF_TRACE] EXPORT_POINTER_MISSING: startup export probe did not provide il2cpp_object_get_virtual_method.");
                 return;
             }
 
             IntPtr moduleBase = FindIl2CppBase();
-            log.LogInfo("[GENERICMETHOD_XREF_TRACE] libil2cpp export: " + Format(export, moduleBase));
+            log.LogInfo("[GENERICMETHOD_XREF_TRACE] Reusing verified export: " + Format(getVirtualMethodExport, moduleBase));
 
-            IntPtr[] apiTargets = TraceJumpTargets(log, "STEP1 export -> Object::GetVirtualMethod", export, moduleBase);
+            IntPtr[] apiTargets = TraceJumpTargets(log, "STEP1 export -> Object::GetVirtualMethod", getVirtualMethodExport, moduleBase);
             if (apiTargets.Length != 1)
             {
                 log.LogWarning("[GENERICMETHOD_XREF_TRACE] STOP_STEP1: expected exactly 1 jump target, got " + apiTargets.Length);
@@ -66,7 +59,7 @@ internal static class GenericMethodXrefProbe
 
             IntPtr selected = shimTargets.Take(2).Last();
             log.LogInfo("[GENERICMETHOD_XREF_TRACE] CURRENT_FORK_SELECTION: " + Format(selected, moduleBase));
-            log.LogInfo("[GENERICMETHOD_XREF_TRACE] This is a candidate address only; no detour was installed.");
+            log.LogInfo("[GENERICMETHOD_XREF_TRACE] Candidate address only; no detour was installed.");
         }
         catch (Exception exception)
         {
@@ -74,8 +67,6 @@ internal static class GenericMethodXrefProbe
         }
         finally
         {
-            if (handle != IntPtr.Zero)
-                NativeLibrary.Free(handle);
             log.LogInfo("[GENERICMETHOD_XREF_TRACE] ===== END READ-ONLY TRACE 0.1.4 =====");
         }
     }
