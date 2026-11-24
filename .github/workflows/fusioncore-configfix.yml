@@ -1,10 +1,9 @@
-name: Build FusionCore config-forwarding test APK
-# Experimental side-by-side validation build; never patches the installed game APK.
-# SDK packages are explicitly listed to avoid the retired legacy 'tools' package.
+name: Build FusionCore native diagnostics APK
+# Experimental side-by-side diagnostic build; never patches the installed game APK.
 
 on:
   push:
-    branches: [ "main", "fusioncore-config-forwarding" ]
+    branches: [ "main", "fusioncore-config-forwarding", "fusioncore-native-diagnostics" ]
     paths:
       - ".github/workflows/fusioncore-configfix.yml"
       - "patches/**"
@@ -33,7 +32,7 @@ jobs:
           mkdir fusioncore-src
           tar -xzf fusioncore.tar.gz --strip-components=1 -C fusioncore-src
 
-      - name: Apply narrow config-forwarding patch
+      - name: Apply config-forwarding compatibility patch
         run: |
           cp patches/apply_fusioncore_configfix.py fusioncore-src/
           cd fusioncore-src
@@ -41,6 +40,16 @@ jobs:
           python3 -m py_compile apply_fusioncore_configfix.py
           grep -n "Forwarded FusionCore config" fusionApp/src/main/java/dev/allofus/fusioncore/hooks/GameRuntime.java
           grep -n 'applicationIdSuffix = ".configfix"' fusionApp/build.gradle.kts
+
+      - name: Apply native startup diagnostics
+        run: |
+          cp patches/apply_fusioncore_diagnostics.py fusioncore-src/
+          cd fusioncore-src
+          python3 apply_fusioncore_diagnostics.py
+          python3 -m py_compile apply_fusioncore_diagnostics.py
+          grep -n "FUSIONCORE_NATIVE_LOG" fusionApp/src/main/jni/fusion/src/fusion.cpp
+          grep -n "entering original il2cpp_init" fusionApp/src/main/jni/fusion/src/fusion.cpp
+          grep -n "native_log_mutex" fusionApp/src/main/jni/fusion/src/logger.cpp
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -61,7 +70,7 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v5
 
-      - name: Build patched debug APK
+      - name: Build diagnostic debug APK
         working-directory: fusioncore-src
         run: |
           chmod +x gradlew
@@ -75,10 +84,10 @@ jobs:
           "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$APK" | grep "package: name='dev.allofus.fusioncore.configfix'"
           "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify "$APK"
 
-      - name: Upload patched test APK
+      - name: Upload diagnostic test APK
         uses: actions/upload-artifact@v4
         with:
-          name: FusionCore-0.045-configfix-debug
+          name: FusionCore-0.045-native-diagnostics
           path: fusioncore-src/fusionApp/build/outputs/apk/debug/*.apk
           if-no-files-found: error
           retention-days: 14
