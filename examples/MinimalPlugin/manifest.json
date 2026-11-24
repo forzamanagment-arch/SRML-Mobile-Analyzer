@@ -1,0 +1,24 @@
+{
+  "format": "SRMLmobileAddon",
+  "formatVersion": 1,
+  "id": "srmlmobile.example.minimal",
+  "name": "Minimal Mobile Plugin",
+  "author": "SRML Mobile",
+  "version": "0.1.0",
+  "description": "A placeholder package manifest for validating the mobile add-on format.",
+  "targetGame": {
+    "package": "com.playdigious.slimerancher",
+    "version": "1.1.1103"
+  },
+  "runtimeApi": {
+    "minimum": "0.1.0",
+    "maximum": "0.1.x"
+  },
+  "entryAssembly": null,
+  "entryType": null,
+  "capabilities": [],
+  "dependencies": [],
+  "assets": {
+    "portableFiles": []
+  }
+}
