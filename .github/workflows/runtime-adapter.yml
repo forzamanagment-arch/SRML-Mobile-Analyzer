@@ -66,5 +66,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: SRMLMobile-RuntimeAdapter-0.1.5
-          path: SRMLMobile-RuntimeAdapter-0.1.4.zip
+          path: SRMLMobile-RuntimeAdapter-0.1.5.zip
           if-no-files-found: error
