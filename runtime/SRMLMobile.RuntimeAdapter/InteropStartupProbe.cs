@@ -8,6 +8,7 @@ namespace SRMLMobile.RuntimeAdapter;
 
 internal static class InteropStartupProbe
 {
+    public static IntPtr ObjectGetVirtualMethodExport { get; private set; }
     public static void Run(ManualLogSource log)
     {
         log.LogInfo("[INTEROP_STARTUP_PROBE] ===== BEGIN SAFE STARTUP PROBE 0.1.3 =====");
@@ -54,6 +55,8 @@ internal static class InteropStartupProbe
                      })
             {
                 bool found = NativeLibrary.TryGetExport(handle, name, out IntPtr address);
+                if (name == "il2cpp_object_get_virtual_method" && found)
+                    ObjectGetVirtualMethodExport = address;
                 log.LogInfo("[INTEROP_STARTUP_PROBE] EXPORT " + name + ": " +
                     (found ? "FOUND at 0x" + address.ToInt64().ToString("X") : "MISSING"));
             }
