@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://srml-mobile.invalid/schemas/manifest-v1.schema.json",
+  "title": "SRML Mobile Add-on Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "formatVersion",
+    "id",
+    "name",
+    "author",
+    "version",
+    "targetGame",
+    "runtimeApi",
+    "capabilities",
+    "dependencies"
+  ],
+  "properties": {
+    "format": { "const": "SRMLmobileAddon" },
+    "formatVersion": { "const": 1 },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+([.-][a-z0-9]+)*$",
+      "maxLength": 128
+    },
+    "name": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "author": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "version": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?$"
+    },
+    "description": { "type": "string", "maxLength": 2000 },
+    "targetGame": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["package", "version"],
+      "properties": {
+        "package": { "const": "com.playdigious.slimerancher" },
+        "version": { "type": "string", "minLength": 1 },
+        "versionRange": { "type": "string" }
+      }
+    },
+    "runtimeApi": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["minimum", "maximum"],
+      "properties": {
+        "minimum": { "type": "string" },
+        "maximum": { "type": "string" }
+      }
+    },
+    "entryAssembly": {
+      "type": ["string", "null"],
+      "pattern": "^[A-Za-z0-9_./-]+\\.dll$"
+    },
+    "entryType": { "type": ["string", "null"], "maxLength": 256 },
+    "capabilities": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "texture-replacement",
+          "custom-slime-definition",
+          "custom-slime-appearance",
+          "custom-slime-diet",
+          "custom-spawn-rules",
+          "slimepedia-entries",
+          "gameplay-patches",
+          "custom-items"
+        ]
+      }
+    },
+    "dependencies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "minimumVersion"],
+        "properties": {
+          "id": { "type": "string", "maxLength": 128 },
+          "minimumVersion": { "type": "string" },
+          "optional": { "type": "boolean", "default": false }
+        }
+      }
+    },
+    "assets": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "slimeDefinition": { "type": "string" },
+        "icon": { "type": "string" },
+        "androidAssetBundles": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/assetBundle" }
+        },
+        "portableFiles": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "assetBundle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "unityVersion", "platform"],
+      "properties": {
+        "path": { "type": "string" },
+        "unityVersion": { "type": "string" },
+        "platform": { "const": "Android" },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-fA-F0-9]{64}$"
+        }
+      }
+    }
+  }
+}

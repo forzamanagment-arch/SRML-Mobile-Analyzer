@@ -1,0 +1,70 @@
+name: Build SRML Mobile Runtime Adapter
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "runtime/SRMLMobile.API/**"
+      - "runtime/SRMLMobile.RuntimeAdapter/**"
+      - "runtime/SRMLMobile.SamplePlugin/**"
+      - ".github/workflows/runtime-adapter.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout SRML Mobile
+        uses: actions/checkout@v4
+
+      - name: Checkout exact FusionCore runtime source
+        uses: actions/checkout@v4
+        with:
+          repository: All-Of-Us-Mods/FusionCore
+          ref: "0.045"
+          path: deps/FusionCore
+
+      - name: Extract embedded BepInEx Fusion runtime
+        run: |
+          mkdir -p deps/FusionCoreRuntime
+          unzip -q deps/FusionCore/fusionApp/src/main/assets/BepInEx-arm64.zip -d deps/FusionCoreRuntime
+          for file in \
+            BepInEx.Core.dll \
+            BepInEx.Unity.Common.dll \
+            BepInEx.Unity.IL2CPP.dll \
+            Il2CppInterop.Common.dll \
+            Il2CppInterop.Runtime.dll; do
+            test -f "deps/FusionCoreRuntime/core/$file"
+          done
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Build runtime adapter and API
+        run: |
+          dotnet build runtime/SRMLMobile.RuntimeAdapter/SRMLMobile.RuntimeAdapter.csproj \
+            --configuration Release \
+            --output artifacts/plugins
+
+      - name: Build external sample add-on
+        run: |
+          dotnet build runtime/SRMLMobile.SamplePlugin/SRMLMobile.SamplePlugin.csproj \
+            --configuration Release \
+            --output artifacts/sample
+
+      - name: Package BepInEx plugins and sample add-on
+        run: |
+          mkdir -p artifacts/package/BepInEx/plugins/SRMLMobile/Mods
+          cp artifacts/plugins/SRMLMobile.RuntimeAdapter.dll artifacts/package/BepInEx/plugins/
+          cp artifacts/plugins/SRMLMobile.API.dll artifacts/package/BepInEx/plugins/
+          cp artifacts/sample/SRMLMobile.SamplePlugin.dll artifacts/package/BepInEx/plugins/SRMLMobile/Mods/
+          cd artifacts/package
+          zip -r ../../SRMLMobile-RuntimeAdapter-0.1.0.zip BepInEx
+
+      - name: Upload adapter artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SRMLMobile-RuntimeAdapter-0.1.0
+          path: SRMLMobile-RuntimeAdapter-0.1.0.zip
+          if-no-files-found: error

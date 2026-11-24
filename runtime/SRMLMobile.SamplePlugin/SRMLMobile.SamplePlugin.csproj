@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>SRMLMobile.SamplePlugin</AssemblyName>
+    <RootNamespace>SRMLMobile.SamplePlugin</RootNamespace>
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../SRMLMobile.API/SRMLMobile.API.csproj" />
+  </ItemGroup>
+</Project>

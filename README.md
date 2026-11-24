@@ -49,6 +49,10 @@ For metadata v39, `inspect-metadata` reports the parsed header sections and calc
 
 - [Custom slime creation research](docs/SLIME_CREATION_RESEARCH.md)
 - [Addon package format](docs/ADDON_FORMAT.md)
+- [Mobile API contract 0.1](docs/MOBILE_API_CONTRACT_V0.1.md)
+- [Runtime Adapter 0.1](runtime/SRMLMobile.RuntimeAdapter/README.md)
+- [External sample add-on](runtime/SRMLMobile.SamplePlugin/README.md)
+- [PC SRML compatibility research](docs/PC_SRML_COMPATIBILITY_RESEARCH_2026-11-24.md)
 - [Android loader and Manager bootstrap research](docs/LOADER_BOOTSTRAP_RESEARCH.md)
 
 ## Development
@@ -64,5 +68,6 @@ python -m unittest discover -s tests -v
 3. Use the target metadata file with the browser or CLI analyzer and fix any real-sample mismatches.
 4. Resolve `TypeIndex` references and method pointers using the matching `libil2cpp.so` metadata/code registration structures.
 5. Export stable JSON and human-readable reports, then begin game-class analysis.
+6. Compile and integrate the contract-only SRML Mobile API; keep gameplay features disabled until validated on-device.
 
 No game binaries should be committed to this public repository.
