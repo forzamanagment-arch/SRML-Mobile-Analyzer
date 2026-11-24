@@ -1,10 +1,9 @@
-name: Build FusionCore config-forwarding test APK
-# Experimental side-by-side validation build; never patches the installed game APK.
-# SDK packages are explicitly listed to avoid the retired legacy 'tools' package.
+name: Build FusionCore native diagnostics APK
+# Experimental side-by-side diagnostic build; never patches the installed game APK.
 
 on:
   push:
-    branches: [ "main", "fusioncore-config-forwarding" ]
+    branches: [ "main", "fusioncore-config-forwarding", "fusioncore-native-diagnostics" ]
     paths:
       - ".github/workflows/fusioncore-configfix.yml"
       - "patches/**"
@@ -33,14 +32,71 @@ jobs:
           mkdir fusioncore-src
           tar -xzf fusioncore.tar.gz --strip-components=1 -C fusioncore-src
 
-      - name: Apply narrow config-forwarding patch
+      - name: Apply config-forwarding compatibility patch
         run: |
           cp patches/apply_fusioncore_configfix.py fusioncore-src/
           cd fusioncore-src
           python3 apply_fusioncore_configfix.py
           python3 -m py_compile apply_fusioncore_configfix.py
           grep -n "Forwarded FusionCore config" fusionApp/src/main/java/dev/allofus/fusioncore/hooks/GameRuntime.java
-          grep -n 'applicationIdSuffix = ".configfix"' fusionApp/build.gradle.kts
+          grep -n 'applicationIdSuffix = ".diagnostics"' fusionApp/build.gradle.kts
+
+      - name: Apply native startup diagnostics
+        run: |
+          cp patches/apply_fusioncore_diagnostics.py fusioncore-src/
+          cd fusioncore-src
+          python3 apply_fusioncore_diagnostics.py
+          python3 -m py_compile apply_fusioncore_diagnostics.py
+          grep -n "FUSIONCORE_NATIVE_LOG" fusionApp/src/main/jni/fusion/src/fusion.cpp
+          grep -n "entering original il2cpp_init" fusionApp/src/main/jni/fusion/src/fusion.cpp
+          grep -n "native_log_mutex" fusionApp/src/main/jni/fusion/src/logger.cpp
+
+      - name: Download pinned ARM64 Il2CppInterop source
+        run: |
+          curl --fail --location --retry 3 \
+            https://github.com/All-Of-Us-Mods/Il2CppInterop/archive/0c18e38c6fa71d09a62b53080596afd7362837c1.tar.gz \
+            --output il2cppinterop.tar.gz
+          mkdir il2cppinterop-src
+          tar -xzf il2cppinterop.tar.gz --strip-components=1 -C il2cppinterop-src
+
+      - name: Patch Unity 6 GenericMethod target resolver
+        run: |
+          cp patches/apply_il2cpp_unity6_methodcall_fix.py il2cppinterop-src/
+          cd il2cppinterop-src
+          python3 apply_il2cpp_unity6_methodcall_fix.py
+          python3 -m py_compile apply_il2cpp_unity6_methodcall_fix.py
+          grep -n "MethodCalls" Il2CppInterop.Runtime/Injection/Hooks/GenericMethod_GetMethod_Unity6_Hook.cs
+
+      - name: Set up .NET 10 SDK
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: il2cppinterop-src/global.json
+
+      - name: Build patched Il2CppInterop runtime
+        working-directory: il2cppinterop-src
+        run: |
+          dotnet build Il2CppInterop.Runtime/Il2CppInterop.Runtime.csproj --configuration Release
+          COMMON_DLL="$(find bin -type f -name 'Il2CppInterop.Common.dll' -print -quit)"
+          RUNTIME_DLL="$(find bin -type f -name 'Il2CppInterop.Runtime.dll' -print -quit)"
+          test -n "$COMMON_DLL"
+          test -n "$RUNTIME_DLL"
+          echo "COMMON_DLL=$COMMON_DLL" >> "$GITHUB_ENV"
+          echo "RUNTIME_DLL=$RUNTIME_DLL" >> "$GITHUB_ENV"
+          strings "$COMMON_DLL" | grep -F "MethodCalls"
+          strings "$RUNTIME_DLL" | grep -F "GenericMethod_GetMethod_Unity6_Hook"
+
+      - name: Replace packaged ARM64 Il2CppInterop assemblies
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/bepinex-patched
+          unzip -q fusioncore-src/fusionApp/src/main/assets/BepInEx-arm64.zip -d /tmp/bepinex-patched
+          cp "il2cppinterop-src/$COMMON_DLL" /tmp/bepinex-patched/core/Il2CppInterop.Common.dll
+          cp "il2cppinterop-src/$RUNTIME_DLL" /tmp/bepinex-patched/core/Il2CppInterop.Runtime.dll
+          strings /tmp/bepinex-patched/core/Il2CppInterop.Common.dll | grep -F "MethodCalls"
+          strings /tmp/bepinex-patched/core/Il2CppInterop.Runtime.dll | grep -F "GenericMethod_GetMethod_Unity6_Hook"
+          (cd /tmp/bepinex-patched && zip -qr /tmp/BepInEx-arm64-patched.zip .)
+          mv /tmp/BepInEx-arm64-patched.zip fusioncore-src/fusionApp/src/main/assets/BepInEx-arm64.zip
+          sha256sum fusioncore-src/fusionApp/src/main/assets/BepInEx-arm64.zip
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -61,7 +117,7 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v5
 
-      - name: Build patched debug APK
+      - name: Build diagnostic debug APK
         working-directory: fusioncore-src
         run: |
           chmod +x gradlew
@@ -72,13 +128,13 @@ jobs:
         run: |
           APK="$(find fusionApp/build/outputs/apk/debug -name '*.apk' -print -quit)"
           test -n "$APK"
-          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$APK" | grep "package: name='dev.allofus.fusioncore.configfix'"
+          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$APK" | grep "package: name='dev.allofus.fusioncore.diagnostics'"
           "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify "$APK"
 
-      - name: Upload patched test APK
+      - name: Upload diagnostic test APK
         uses: actions/upload-artifact@v4
         with:
-          name: FusionCore-0.045-configfix-debug
+          name: FusionCore-0.045-native-diagnostics
           path: fusioncore-src/fusionApp/build/outputs/apk/debug/*.apk
           if-no-files-found: error
           retention-days: 14
