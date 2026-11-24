@@ -50,6 +50,8 @@ For metadata v39, `inspect-metadata` reports the parsed header sections and calc
 - [Custom slime creation research](docs/SLIME_CREATION_RESEARCH.md)
 - [Addon package format](docs/ADDON_FORMAT.md)
 - [Mobile API contract 0.1](docs/MOBILE_API_CONTRACT_V0.1.md)
+- [Runtime Adapter 0.1](runtime/SRMLMobile.RuntimeAdapter/README.md)
+- [External sample add-on](runtime/SRMLMobile.SamplePlugin/README.md)
 - [PC SRML compatibility research](docs/PC_SRML_COMPATIBILITY_RESEARCH_2026-11-24.md)
 - [Android loader and Manager bootstrap research](docs/LOADER_BOOTSTRAP_RESEARCH.md)
 
