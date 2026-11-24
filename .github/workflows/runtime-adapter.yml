@@ -49,8 +49,8 @@ jobs:
 
       - name: Build external sample add-on
         run: |
-          dotnet build runtime/SRMLMobile.SamplePlugin/SRMLMobile.SamplePlugin.csproj \\
-            --configuration Release \\
+          dotnet build runtime/SRMLMobile.SamplePlugin/SRMLMobile.SamplePlugin.csproj \
+            --configuration Release \
             --output artifacts/sample
 
       - name: Package BepInEx plugins and sample add-on
