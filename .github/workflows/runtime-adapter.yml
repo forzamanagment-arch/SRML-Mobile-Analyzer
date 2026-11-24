@@ -6,6 +6,7 @@ on:
     paths:
       - "runtime/SRMLMobile.API/**"
       - "runtime/SRMLMobile.RuntimeAdapter/**"
+      - "runtime/SRMLMobile.SamplePlugin/**"
       - ".github/workflows/runtime-adapter.yml"
 
 jobs:
