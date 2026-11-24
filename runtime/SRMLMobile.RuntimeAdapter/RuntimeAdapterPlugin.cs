@@ -43,7 +43,7 @@ public sealed class RuntimeAdapterPlugin : BasePlugin
         LoadExternalSampleAddOn(context);
         InteropRuntimeInventory.Run(Log);
         InteropStartupProbe.Run(Log);
-        GenericMethodXrefProbe.Run(Log);
+        GenericMethodXrefProbe.Run(Log, InteropStartupProbe.ObjectGetVirtualMethodExport);
         ProbeUnityInteropSurface();
 
         Log.LogInfo("[SRMLMOBILE_RUNTIME_ADAPTER] Adapter initialization finished");
