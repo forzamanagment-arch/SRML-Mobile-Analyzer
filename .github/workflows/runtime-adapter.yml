@@ -46,11 +46,18 @@ jobs:
             --configuration Release \
             --output artifacts/plugins
 
-      - name: Package BepInEx plugins
+      - name: Build external sample add-on
         run: |
-          mkdir -p artifacts/package/BepInEx/plugins
+          dotnet build runtime/SRMLMobile.SamplePlugin/SRMLMobile.SamplePlugin.csproj \\
+            --configuration Release \\
+            --output artifacts/sample
+
+      - name: Package BepInEx plugins and sample add-on
+        run: |
+          mkdir -p artifacts/package/BepInEx/plugins/SRMLMobile/Mods
           cp artifacts/plugins/SRMLMobile.RuntimeAdapter.dll artifacts/package/BepInEx/plugins/
           cp artifacts/plugins/SRMLMobile.API.dll artifacts/package/BepInEx/plugins/
+          cp artifacts/sample/SRMLMobile.SamplePlugin.dll artifacts/package/BepInEx/plugins/SRMLMobile/Mods/
           cd artifacts/package
           zip -r ../../SRMLMobile-RuntimeAdapter-0.1.0.zip BepInEx
 
