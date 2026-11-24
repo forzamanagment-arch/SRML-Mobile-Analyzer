@@ -181,7 +181,7 @@ replace_once(
 
     if (result != 0)
 """,
-    """    log_format(LogLevel::INFO, TAG, "DIAG: about to install Dobby hook on il2cpp_init at {}", fmt::ptr(p_il2cpp_init));
+    """    log_format(LogLevel::INFO, TAG, "DIAG: about to install Dobby hook on il2cpp_init at {}", reinterpret_cast<uintptr_t>(p_il2cpp_init));
     dobby_disable_near_branch_trampoline();
     log(LogLevel::INFO, TAG, "DIAG: Dobby near-branch trampoline disabled");
     int result = DobbyHook(
