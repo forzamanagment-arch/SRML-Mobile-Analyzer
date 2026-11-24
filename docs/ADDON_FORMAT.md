@@ -215,3 +215,12 @@ The mobile Runtime should implement a staged API inspired by desktop SRML lifecy
 ### Critical caveat
 
 Desktop SRML source is valuable evidence for game concepts and registration responsibilities, but it is not evidence that desktop mods can run on Android or that the mobile game's internal registration path is identical. The target mobile game's own metadata and serialized assets remain authoritative.
+
+
+## Manifest schema and API contract baseline (2026-11-24)
+
+The initial machine-readable manifest schema is available at `schemas/manifest.schema.json`, with a minimal example at `examples/MinimalPlugin/manifest.json`. It defines format version 1, game identity, Runtime API compatibility range, requested capabilities, dependencies, and optional Android AssetBundle metadata.
+
+The first contract-only API assembly is in `runtime/SRMLMobile.API/` and is documented in `docs/MOBILE_API_CONTRACT_V0.1.md`. It defines plugin lifecycle, context, logging, game/runtime information, and capability discovery. It does **not** yet provide game-facing slime, prefab, diet, spawn, Slimepedia, or gameplay APIs, and it is not yet wired into BepInEx/FusionCore discovery.
+
+These files are an initial implementation baseline, not a claim that add-ons can already be loaded in the game. The Manager may validate package metadata independently; code execution remains a separate runtime milestone.
