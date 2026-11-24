@@ -1,0 +1,54 @@
+using System;
+using BepInEx.Logging;
+using Il2CppInterop.Runtime;
+using Il2CppInterop.Runtime.Runtime;
+using Il2CppInterop.Runtime.Startup;
+
+namespace SRMLMobile.RuntimeAdapter;
+
+internal static class InteropStartupProbe
+{
+    public static void Run(ManualLogSource log)
+    {
+        log.LogInfo("[INTEROP_STARTUP_PROBE] ===== BEGIN SAFE STARTUP PROBE 0.1.3 =====");
+        try
+        {
+            Version unityVersion = Il2CppInteropRuntime.Instance.UnityVersion;
+            log.LogInfo("[INTEROP_STARTUP_PROBE] Il2CppInterop UnityVersion: " + unityVersion);
+            log.LogInfo("[INTEROP_STARTUP_PROBE] Unity major >= 6000: " + (unityVersion.Major >= 6000));
+            log.LogInfo("[INTEROP_STARTUP_PROBE] HasShimForGetMethod: " + UnityVersionHandler.HasShimForGetMethod);
+            log.LogInfo("[INTEROP_STARTUP_PROBE] HasGetMethodFromReflection: " + UnityVersionHandler.HasGetMethodFromReflection);
+            log.LogInfo("[INTEROP_STARTUP_PROBE] IsMetadataV29OrHigher: " + UnityVersionHandler.IsMetadataV29OrHigher);
+            log.LogInfo("[INTEROP_STARTUP_PROBE] Selected GenericMethod hook: " +
+                (unityVersion.Major >= 6000
+                    ? "GenericMethod_GetMethod_Unity6_Hook"
+                    : "GenericMethod_GetMethod_Hook"));
+
+            ProbeExport(log, "il2cpp_object_get_virtual_method");
+            ProbeExport(log, "il2cpp_array_new_specific");
+            ProbeExport(log, "il2cpp_class_get_methods");
+            ProbeExport(log, "il2cpp_class_get_method_from_name");
+        }
+        catch (Exception exception)
+        {
+            log.LogError("[INTEROP_STARTUP_PROBE] Probe failed: " + exception);
+        }
+        log.LogInfo("[INTEROP_STARTUP_PROBE] NOTE: export resolution only; no Xref scan, native memory read, pointer traversal, or hook installation performed.");
+        log.LogInfo("[INTEROP_STARTUP_PROBE] ===== END SAFE STARTUP PROBE 0.1.3 =====");
+    }
+
+    private static void ProbeExport(ManualLogSource log, string name)
+    {
+        try
+        {
+            IntPtr address = IL2CPP.Resolve(name);
+            log.LogInfo("[INTEROP_STARTUP_PROBE] EXPORT " + name + ": " +
+                (address == IntPtr.Zero ? "MISSING" : "FOUND at 0x" + address.ToInt64().ToString("X")));
+        }
+        catch (Exception exception)
+        {
+            log.LogWarning("[INTEROP_STARTUP_PROBE] EXPORT_PROBE_FAILED " + name + ": " +
+                exception.GetType().Name + ": " + exception.Message);
+        }
+    }
+}
