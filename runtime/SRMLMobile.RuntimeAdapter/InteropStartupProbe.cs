@@ -1,6 +1,6 @@
 using System;
+using System.Runtime.InteropServices;
 using BepInEx.Logging;
-using Il2CppInterop.Runtime;
 using Il2CppInterop.Runtime.Runtime;
 using Il2CppInterop.Runtime.Startup;
 
@@ -24,10 +24,7 @@ internal static class InteropStartupProbe
                     ? "GenericMethod_GetMethod_Unity6_Hook"
                     : "GenericMethod_GetMethod_Hook"));
 
-            ProbeExport(log, "il2cpp_object_get_virtual_method");
-            ProbeExport(log, "il2cpp_array_new_specific");
-            ProbeExport(log, "il2cpp_class_get_methods");
-            ProbeExport(log, "il2cpp_class_get_method_from_name");
+            ProbeExports(log);
         }
         catch (Exception exception)
         {
@@ -37,18 +34,39 @@ internal static class InteropStartupProbe
         log.LogInfo("[INTEROP_STARTUP_PROBE] ===== END SAFE STARTUP PROBE 0.1.3 =====");
     }
 
-    private static void ProbeExport(ManualLogSource log, string name)
+    private static void ProbeExports(ManualLogSource log)
     {
+        IntPtr handle = IntPtr.Zero;
         try
         {
-            IntPtr address = IL2CPP.Resolve(name);
-            log.LogInfo("[INTEROP_STARTUP_PROBE] EXPORT " + name + ": " +
-                (address == IntPtr.Zero ? "MISSING" : "FOUND at 0x" + address.ToInt64().ToString("X")));
+            if (!NativeLibrary.TryLoad("libil2cpp.so", typeof(InteropStartupProbe).Assembly, null, out handle))
+            {
+                log.LogWarning("[INTEROP_STARTUP_PROBE] Could not load libil2cpp.so for export inspection.");
+                return;
+            }
+
+            foreach (string name in new[]
+                     {
+                         "il2cpp_object_get_virtual_method",
+                         "il2cpp_array_new_specific",
+                         "il2cpp_class_get_methods",
+                         "il2cpp_class_get_method_from_name"
+                     })
+            {
+                bool found = NativeLibrary.TryGetExport(handle, name, out IntPtr address);
+                log.LogInfo("[INTEROP_STARTUP_PROBE] EXPORT " + name + ": " +
+                    (found ? "FOUND at 0x" + address.ToInt64().ToString("X") : "MISSING"));
+            }
         }
         catch (Exception exception)
         {
-            log.LogWarning("[INTEROP_STARTUP_PROBE] EXPORT_PROBE_FAILED " + name + ": " +
+            log.LogWarning("[INTEROP_STARTUP_PROBE] Export inspection failed: " +
                 exception.GetType().Name + ": " + exception.Message);
+        }
+        finally
+        {
+            if (handle != IntPtr.Zero)
+                NativeLibrary.Free(handle);
         }
     }
 }
