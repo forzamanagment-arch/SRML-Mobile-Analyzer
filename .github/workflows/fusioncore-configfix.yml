@@ -39,7 +39,7 @@ jobs:
           python3 apply_fusioncore_configfix.py
           python3 -m py_compile apply_fusioncore_configfix.py
           grep -n "Forwarded FusionCore config" fusionApp/src/main/java/dev/allofus/fusioncore/hooks/GameRuntime.java
-          grep -n 'applicationIdSuffix = ".configfix"' fusionApp/build.gradle.kts
+          grep -n 'applicationIdSuffix = ".diagnostics"' fusionApp/build.gradle.kts
 
       - name: Apply native startup diagnostics
         run: |
